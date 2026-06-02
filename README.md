@@ -68,6 +68,10 @@ By default, login writes to `~/.grok-video-web/login-test/xai-oauth.json` so rep
 Vite+ (`vp`) owns frontend build, lint/format/type checks, and tests. The npm scripts keep the server TypeScript build wired in:
 
 ```bash
+npm run fmt
+npm run fmt:check
+npm run lint
+npm run lint:fix
 npm run check
 npm test
 npm run build

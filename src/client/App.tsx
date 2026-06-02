@@ -1,4 +1,3 @@
-import { Check } from "lucide-react";
 import {
   Copy,
   Download,
@@ -244,12 +243,16 @@ export default function App() {
                   >
                     <img src={withToken(job.sourceImageUrl)} alt="" />
                     <span className={`history-status ${job.status}`}>{shortStatusLabel(job)}</span>
-                    {isCurrent && <span className="history-current">当前</span>}
+                    {isCurrent && (
+                      <>
+                        <span className="history-current-dot" aria-hidden="true" />
+                        <span className="sr-only">current job</span>
+                      </>
+                    )}
                     <strong>任务 #{jobs.length - index}</strong>
                     <small>
                       {jobSummary(job)} · {formatDate(job.updatedAt)}
                     </small>
-                    <em>{isCurrent ? "当前预览" : "点击复用"}</em>
                   </button>
                 );
               })
@@ -421,7 +424,7 @@ export default function App() {
             >
               {submitting ? <Loader2 className="spin" size={19} /> : <Play size={19} />}
               <span>{submitting ? "生成中" : imageFile ? "生成视频" : "先添加图片"}</span>
-              {!submitting && !imageFile && <small>LOCKED</small>}
+              {!submitting && !imageFile && <small aria-hidden="true" />}
             </button>
             {!imageFile && <p className="generate-note">先添加一张源图，按钮会自动解锁。</p>}
             {toast && <div className={`toast ${toast.tone}`}>{toast.text}</div>}
@@ -519,12 +522,12 @@ function Toggle(props: { label: string; active: boolean; onClick: () => void }) 
       type="button"
       className={`toggle ${props.active ? "active" : ""}`}
       aria-pressed={props.active}
+      aria-label={`${props.label}: ${props.active ? "on" : "off"}`}
       onClick={props.onClick}
     >
-      <span className="toggle-indicator">{props.active ? <Check size={13} /> : "OFF"}</span>
+      <StateDot active={props.active} />
       <span className="toggle-copy">
         <b>{props.label}</b>
-        <em>{props.active ? "已启用" : "未启用"}</em>
       </span>
     </button>
   );
@@ -545,11 +548,15 @@ function PresetButton(props: {
     >
       <span className="preset-top">
         <b>{props.label}</b>
-        <em>{props.selected ? "当前" : "未选"}</em>
+        <StateDot active={props.selected} />
       </span>
       <span>{props.description}</span>
     </button>
   );
+}
+
+function StateDot(props: { active: boolean }) {
+  return <span className={`state-dot ${props.active ? "on" : ""}`} aria-hidden="true" />;
 }
 
 function PromptDisclosure(props: {
@@ -600,7 +607,7 @@ function Segment<T extends string | number>(props: {
             onClick={() => props.onChange(value)}
           >
             <span>{props.format ? props.format(value) : String(value)}</span>
-            {value === props.value && <em>当前</em>}
+            {value === props.value && <StateDot active />}
           </button>
         ))}
       </div>

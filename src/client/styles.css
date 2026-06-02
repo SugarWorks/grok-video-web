@@ -106,6 +106,13 @@ h1 {
   font-weight: 800;
 }
 
+.input-hint {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .prompt-box {
   display: grid;
   gap: 8px;
@@ -401,4 +408,3 @@ h1 {
   .preset-grid { grid-template-columns: 1fr; }
   .segment-row { grid-template-columns: 1fr; }
 }
-

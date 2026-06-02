@@ -54,6 +54,18 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [jobs, token]);
 
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const image = clipboardImageFile(event.clipboardData);
+      if (!image) return;
+      event.preventDefault();
+      chooseFile(image);
+      setToast({ tone: "ok", text: "已从剪贴板粘贴图片。" });
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [imagePreview]);
+
   async function loadConfig() {
     try {
       const response = await fetch(withToken("/api/config"), { headers: authHeader });
@@ -182,10 +194,11 @@ export default function App() {
             {imagePreview ? <img src={imagePreview} alt="source preview" /> : (
               <div className="empty-upload">
                 <ImagePlus size={38} />
-                <span>拖入图片或点击选择</span>
+                <span>拖入 / 粘贴图片 / 点击选择</span>
               </div>
             )}
           </div>
+          <p className="input-hint">支持截图后直接粘贴，或从 Finder / 浏览器复制图片再粘贴。</p>
 
           <label className="prompt-box">
             <span>Prompt</span>
@@ -330,4 +343,17 @@ function statusLabel(job: JobRecord) {
   if (job.status === "failed") return `失败：${job.error ?? ""}`;
   if (job.status === "running") return "生成中";
   return "排队中";
+}
+
+function clipboardImageFile(data: DataTransfer | null): File | null {
+  if (!data) return null;
+  for (const item of Array.from(data.items)) {
+    if (item.kind !== "file" || !item.type.startsWith("image/")) continue;
+    const file = item.getAsFile();
+    if (file) return file;
+  }
+  for (const file of Array.from(data.files)) {
+    if (file.type.startsWith("image/")) return file;
+  }
+  return null;
 }

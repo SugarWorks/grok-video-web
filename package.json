@@ -1,0 +1,43 @@
+{
+  "name": "grok-video-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted Grok image-to-video studio.",
+  "scripts": {
+    "dev": "node --no-warnings=ExperimentalWarning --import tsx src/server/server.ts",
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "vite build",
+    "build:server": "tsc -p tsconfig.server.json",
+    "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
+    "launch": "npm run build && node dist/server/server/launch.js",
+    "smoke": "node scripts/smoke.mjs",
+    "test": "vitest run",
+    "start": "node dist/server/server/launch.js"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "lucide-react": "^0.561.0",
+    "multer": "^2.0.2",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.0.0",
+    "@types/node": "^25.7.0",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "playwright": "^1.60.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vite": "^7.2.7",
+    "vitest": "^4.0.14"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  }
+}

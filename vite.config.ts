@@ -4,7 +4,7 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   fmt: {},
   lint: {
-    plugins: ["typescript", "react", "jsx-a11y", "import", "vitest"],
+    plugins: ["typescript", "react", "jsx-a11y", "import", "vitest", "unicorn", "oxc"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: {
       "jsx-a11y/media-has-caption": "off",

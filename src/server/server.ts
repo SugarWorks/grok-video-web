@@ -25,10 +25,10 @@ export function createServer(config: AppConfig = loadConfig()) {
     response.json({ ok: true });
   });
 
-  app.get("/api/config", requireAccess(config), (_request, response) => {
+  app.get("/api/config", requireAccess(config), (request, response) => {
     const payload: PublicConfig = {
       appName: "Grok Video Studio",
-      authRequired: Boolean(config.accessToken),
+      authRequired: Boolean(config.accessToken) && !isLoopbackRequest(request),
       defaults: {
         durationSeconds: config.defaults.durationSeconds,
         resolution: config.defaults.resolution,
@@ -98,11 +98,19 @@ export function createServer(config: AppConfig = loadConfig()) {
 function requireAccess(config: AppConfig) {
   return (request: Request, response: Response, next: NextFunction) => {
     if (!config.accessToken) return next();
+    if (isLoopbackRequest(request)) return next();
     const bearer = request.header("authorization")?.replace(/^Bearer\s+/i, "").trim();
     const queryToken = typeof request.query.token === "string" ? request.query.token : undefined;
     if (bearer === config.accessToken || queryToken === config.accessToken) return next();
     return response.status(401).json({ error: "unauthorized" });
   };
+}
+
+function isLoopbackRequest(request: Request): boolean {
+  const remoteAddress = request.socket.remoteAddress ?? "";
+  return remoteAddress === "127.0.0.1"
+    || remoteAddress === "::1"
+    || remoteAddress === "::ffff:127.0.0.1";
 }
 
 function prepareWorkspace(config: AppConfig): void {

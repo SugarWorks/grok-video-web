@@ -7,7 +7,8 @@ const env = readEnv(path.join(repoRoot, ".env"));
 const host = env.HOST || "127.0.0.1";
 const port = env.PORT || "8787";
 const token = env.ACCESS_TOKEN || "";
-const url = new URL(`http://${host}:${port}/`);
+const browserHost = host === "0.0.0.0" || host === "::" ? "127.0.0.1" : host;
+const url = new URL(`http://${browserHost}:${port}/`);
 if (token) url.searchParams.set("token", token);
 
 const consoleErrors = [];
@@ -41,4 +42,3 @@ function readEnv(filePath) {
   }
   return result;
 }
-

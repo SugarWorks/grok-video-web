@@ -4,8 +4,12 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   fmt: {},
   lint: {
+    plugins: ["typescript", "react", "jsx-a11y", "import", "vitest"],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
-    rules: { "vite-plus/prefer-vite-plus-imports": "error" },
+    rules: {
+      "jsx-a11y/media-has-caption": "off",
+      "vite-plus/prefer-vite-plus-imports": "error",
+    },
     options: { typeAware: true, typeCheck: true },
   },
   plugins: [react()],

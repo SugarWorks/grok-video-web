@@ -7,14 +7,14 @@ Self-hosted Grok image-to-video workspace for local use. It serves a private bro
 ```bash
 vp install
 cp .env.example .env
-npm run build
-npm start
+vpr build
+vpr start
 ```
 
 For normal local use:
 
 ```bash
-npm run launch
+vpr launch
 ```
 
 `launch` builds the app, checks xAI OAuth, opens the browser login flow when no token exists, then starts the web app. Open `http://127.0.0.1:8787`.
@@ -34,7 +34,7 @@ Then restart the service and open `http://<mac-lan-ip>:8787` or `http://<mac-loc
 
 - `ACCESS_TOKEN` is optional. Leave it empty for personal local/LAN use; set it only if you intentionally expose the app outside a trusted LAN.
 - `WORKSPACE_DIR` stores `images/`, `videos/`, and `jobs/`.
-- `XAI_AUTH_MODE=oauth` reads `XAI_OAUTH_TOKEN_FILE`, refreshes it when needed, and `npm run launch` can bootstrap it interactively.
+- `XAI_AUTH_MODE=oauth` reads `XAI_OAUTH_TOKEN_FILE`, refreshes it when needed, and `vpr launch` can bootstrap it interactively.
 - `XAI_AUTH_MODE=api_key` uses `XAI_API_KEY`.
 - `DEFAULT_DURATION_SECONDS` supports up to 15 seconds.
 - `MAX_VARIATIONS` limits sequential variations per job.
@@ -65,15 +65,15 @@ By default, login writes to `~/.grok-video-web/login-test/xai-oauth.json` so rep
 
 ## Quality Loop
 
-Vite+ (`vp`) owns frontend build, lint/format/type checks, and tests. The npm scripts keep the server TypeScript build wired in:
+Vite+ (`vp`/`vpr`) owns build, lint/format/type checks, and tests:
 
 ```bash
-npm run fmt
-npm run fmt:check
-npm run lint
-npm run lint:fix
-npm run check
-npm test
-npm run build
-npm run smoke
+vpr fmt
+vpr fmt:check
+vpr lint
+vpr lint:fix
+vpr check
+vp test
+vpr build
+vpr smoke
 ```

@@ -301,6 +301,7 @@ h1 {
   aspect-ratio: 4 / 5;
   border: 2px dashed #59605b;
   border-radius: 3px;
+  padding: 0;
   overflow: hidden;
   background:
     repeating-linear-gradient(135deg, rgba(244, 180, 63, 0.22) 0 12px, transparent 12px 24px),
@@ -310,7 +311,7 @@ h1 {
   place-items: center;
 }
 
-.dropzone input {
+.file-input {
   display: none;
 }
 .dropzone img {

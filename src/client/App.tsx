@@ -9,7 +9,7 @@ import {
   RefreshCw,
   ShieldCheck,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { JobRecord, PublicConfig } from "../shared/api";
 import {
   ASPECT_RATIOS,
@@ -61,31 +61,33 @@ export default function App() {
     return headers;
   }, [token]);
 
-  useEffect(() => {
-    if (token) localStorage.setItem(TOKEN_STORAGE_KEY, token);
-    void loadConfig();
-  }, [token]);
+  const withToken = useCallback(
+    (path: string) => {
+      if (!token) return path;
+      const url = new URL(path, location.origin);
+      url.searchParams.set("token", token);
+      return `${url.pathname}${url.search}`;
+    },
+    [token],
+  );
 
-  useEffect(() => {
-    const active = jobs.some((job) => job.status === "queued" || job.status === "running");
-    if (!active) return;
-    const timer = window.setInterval(() => void loadJobs(), 2500);
-    return () => window.clearInterval(timer);
-  }, [jobs, token]);
+  const chooseFile = useCallback((file: File | null) => {
+    setImageFile(file);
+    setImagePreview((current) => {
+      if (current) URL.revokeObjectURL(current);
+      return file ? URL.createObjectURL(file) : "";
+    });
+  }, []);
 
-  useEffect(() => {
-    const handlePaste = (event: ClipboardEvent) => {
-      const image = clipboardImageFile(event.clipboardData);
-      if (!image) return;
-      event.preventDefault();
-      chooseFile(image);
-      setToast({ tone: "ok", text: "已从剪贴板粘贴图片。" });
-    };
-    window.addEventListener("paste", handlePaste);
-    return () => window.removeEventListener("paste", handlePaste);
-  }, [imagePreview]);
+  const loadJobs = useCallback(async () => {
+    const response = await fetch(withToken("/api/jobs"), { headers: authHeader });
+    if (!response.ok) return;
+    const payload = (await response.json()) as { jobs: JobRecord[] };
+    setJobs(payload.jobs);
+    setSelectedJobId((current) => current || payload.jobs[0]?.id || "");
+  }, [authHeader, withToken]);
 
-  async function loadConfig() {
+  const loadConfig = useCallback(async () => {
     try {
       const response = await fetch(withToken("/api/config"), { headers: authHeader });
       if (response.status === 401) {
@@ -100,28 +102,31 @@ export default function App() {
     } catch (error) {
       setToast({ tone: "warn", text: error instanceof Error ? error.message : String(error) });
     }
-  }
+  }, [authHeader, loadJobs, withToken]);
 
-  async function loadJobs() {
-    const response = await fetch(withToken("/api/jobs"), { headers: authHeader });
-    if (!response.ok) return;
-    const payload = (await response.json()) as { jobs: JobRecord[] };
-    setJobs(payload.jobs);
-    if (!selectedJobId && payload.jobs[0]) setSelectedJobId(payload.jobs[0].id);
-  }
+  useEffect(() => {
+    if (token) localStorage.setItem(TOKEN_STORAGE_KEY, token);
+    void loadConfig();
+  }, [loadConfig, token]);
 
-  function withToken(path: string) {
-    if (!token) return path;
-    const url = new URL(path, location.origin);
-    url.searchParams.set("token", token);
-    return `${url.pathname}${url.search}`;
-  }
+  useEffect(() => {
+    const active = jobs.some((job) => job.status === "queued" || job.status === "running");
+    if (!active) return;
+    const timer = window.setInterval(() => void loadJobs(), 2500);
+    return () => window.clearInterval(timer);
+  }, [jobs, loadJobs]);
 
-  function chooseFile(file: File | null) {
-    setImageFile(file);
-    if (imagePreview) URL.revokeObjectURL(imagePreview);
-    setImagePreview(file ? URL.createObjectURL(file) : "");
-  }
+  useEffect(() => {
+    const handlePaste = (event: ClipboardEvent) => {
+      const image = clipboardImageFile(event.clipboardData);
+      if (!image) return;
+      event.preventDefault();
+      chooseFile(image);
+      setToast({ tone: "ok", text: "已从剪贴板粘贴图片。" });
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [chooseFile]);
 
   async function submit() {
     if (!imageFile) {
@@ -195,10 +200,10 @@ export default function App() {
             }}
           >
             <input
-              autoFocus
               type="password"
               value={tokenDraft}
               onChange={(event) => setTokenDraft(event.target.value)}
+              aria-label="Access token"
               placeholder="ACCESS_TOKEN"
             />
             <button type="submit">解锁</button>
@@ -268,7 +273,16 @@ export default function App() {
         <section className="workspace">
           <div className="source-pane">
             <PaneTitle step="1" title="输入图片" description="拖拽、点击选择，或直接粘贴截图。" />
-            <div
+            <input
+              ref={fileInput}
+              className="file-input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              aria-label="Source image"
+              onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
+            />
+            <button
+              type="button"
               className={`dropzone ${imagePreview ? "has-image" : ""}`}
               onDrop={(event) => {
                 event.preventDefault();
@@ -276,13 +290,8 @@ export default function App() {
               }}
               onDragOver={(event) => event.preventDefault()}
               onClick={() => fileInput.current?.click()}
+              aria-label={imagePreview ? "Change source image" : "Add source image"}
             >
-              <input
-                ref={fileInput}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
-              />
               {imagePreview ? (
                 <img src={imagePreview} alt="source preview" />
               ) : (
@@ -291,7 +300,7 @@ export default function App() {
                   <span>拖入 / 粘贴图片 / 点击选择</span>
                 </div>
               )}
-            </div>
+            </button>
             <p className="input-hint">截图后可直接 Cmd+V；也支持 Finder / 浏览器复制图片后粘贴。</p>
 
             <label className="prompt-box">
@@ -302,6 +311,7 @@ export default function App() {
               <textarea
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
+                aria-label="画面动作"
                 placeholder="例：轻微回眸，衣服被风带起一点，保持脸和构图稳定"
               />
             </label>
@@ -451,7 +461,12 @@ export default function App() {
                   {selectedJob.results.length > 0 ? (
                     selectedJob.results.map((result) => (
                       <article className="video-card" key={result.requestId}>
-                        <video src={withToken(result.url)} controls playsInline />
+                        <video
+                          src={withToken(result.url)}
+                          controls
+                          playsInline
+                          aria-label={`Generated video ${result.index}`}
+                        />
                         <a href={withToken(result.url)} download>
                           <Download size={16} />
                           下载 #{result.index}
@@ -567,7 +582,7 @@ function PromptDisclosure(props: {
 }) {
   return (
     <details className="prompt-disclosure">
-      <summary>
+      <summary aria-label={props.title}>
         <span>
           <b>{props.title}</b>
           <em>{props.description}</em>

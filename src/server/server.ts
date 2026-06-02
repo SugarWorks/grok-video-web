@@ -88,7 +88,7 @@ export function createServer(config: AppConfig = loadConfig()) {
     app.get(/.*/, (_request, response) => response.sendFile(path.join(clientDir, "index.html")));
   } else {
     app.get("/", (_request, response) => {
-      response.type("html").send("<p>Client bundle missing. Run <code>npm run build</code>.</p>");
+      response.type("html").send("<p>Client bundle missing. Run <code>vpr build</code>.</p>");
     });
   }
 

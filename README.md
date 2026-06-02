@@ -46,7 +46,7 @@ The app binds to `127.0.0.1` by default. Use `HOST=0.0.0.0` only for LAN/tunnel 
 To test the xAI/Grok browser login without touching the token file used by the running service:
 
 ```bash
-npm run login:grok -- --output ~/.grok-video-web/login-test/xai-oauth.json
+vpr login
 ```
 
 The command opens the xAI authorization page, waits for the local callback, saves the token state to the test path, and verifies it with the API. If xAI shows a fallback code instead of redirecting, paste that code into the terminal prompt.
@@ -54,12 +54,14 @@ The command opens the xAI authorization page, waits for the local callback, save
 Useful variants:
 
 ```bash
-npm run login:grok -- --output ~/.grok-video-web/login-test/xai-oauth.json --check
-npm run login:grok -- --output ~/.grok-video-web/login-test/xai-oauth.json --force
-npm run login:grok -- --print-url-only
+vpr login --check
+vpr login --print-url-only
+vpr login --live --force
 ```
 
-`--print-url-only` is only for smoke-checking that the OAuth authorization URL can be built; it exits immediately, so do not use that URL to complete a real login. The command refuses to overwrite an existing token file unless `--force` is passed.
+`vpr login` is Vite+'s shorthand for `vp run login`. Vite+ built-in top-level commands such as `vp build` and `vp test` cannot be extended by this project, so custom project commands use `vp run <task>` / `vpr <task>`.
+
+By default, login writes to `~/.grok-video-web/login-test/xai-oauth.json` so repeated login-flow tests do not disturb the live service token. Use `--live --force` only when intentionally repairing `XAI_OAUTH_TOKEN_FILE`. `--print-url-only` is only for smoke-checking that the OAuth authorization URL can be built; it exits immediately, so do not use that URL to complete a real login.
 
 ## Quality Loop
 

@@ -6,6 +6,7 @@ import { resolveXaiAuth } from "./xai-auth.js";
 
 type LoginCliArgs = {
   output?: string;
+  live: boolean;
   force: boolean;
   noBrowser: boolean;
   check: boolean;
@@ -14,6 +15,7 @@ type LoginCliArgs = {
   timeoutSeconds?: number;
 };
 
+const DEFAULT_TEST_TOKEN_FILE = "~/.grok-video-web/login-test/xai-oauth.json";
 const args = parseArgs(process.argv.slice(2));
 const config = loadConfig();
 
@@ -21,7 +23,9 @@ if (config.xai.authMode !== "oauth") {
   throw new Error("Grok login flow only applies when XAI_AUTH_MODE=oauth.");
 }
 
-const outputPath = path.resolve(expandHome(args.output ?? config.xai.oauthTokenFile));
+const outputPath = path.resolve(
+  expandHome(args.output ?? (args.live ? config.xai.oauthTokenFile : DEFAULT_TEST_TOKEN_FILE)),
+);
 const authConfig = { ...config, xai: { ...config.xai, oauthTokenFile: outputPath } };
 
 if (args.check) {
@@ -32,10 +36,10 @@ if (args.check) {
   process.exit(0);
 }
 
-if (fs.existsSync(outputPath) && !args.force && !args.printUrlOnly) {
+if (fs.existsSync(outputPath) && !args.force && !args.printUrlOnly && (args.live || args.output)) {
   console.error(`Refusing to overwrite existing token state: ${outputPath}`);
   console.error(
-    "Pass --force to refresh this token file, or --output <path> to test into a separate file.",
+    "Pass --force to refresh this token file. The default test token path can be overwritten without --force.",
   );
   process.exit(1);
 }
@@ -55,6 +59,7 @@ if (!args.printUrlOnly) {
 
 function parseArgs(values: string[]): LoginCliArgs {
   const parsed: LoginCliArgs = {
+    live: false,
     force: false,
     noBrowser: false,
     check: false,
@@ -62,12 +67,17 @@ function parseArgs(values: string[]): LoginCliArgs {
   };
   for (let index = 0; index < values.length; index += 1) {
     const value = values[index];
+    if (value === "--") continue;
     if (value === "--help" || value === "-h") {
       printHelp();
       process.exit(0);
     }
     if (value === "--force") {
       parsed.force = true;
+      continue;
+    }
+    if (value === "--live") {
+      parsed.live = true;
       continue;
     }
     if (value === "--no-browser") {
@@ -104,11 +114,12 @@ function parseArgs(values: string[]): LoginCliArgs {
 }
 
 function printHelp(): void {
-  console.log(`Usage: npm run login:grok -- [options]
+  console.log(`Usage: vpr login [options]
 
 Options:
-  --output <path>       Token state file to write. Defaults to XAI_OAUTH_TOKEN_FILE.
-  --force               Allow replacing an existing token state file.
+  --live                Write to XAI_OAUTH_TOKEN_FILE instead of the safe test token file.
+  --output <path>       Token state file to write. Defaults to ~/.grok-video-web/login-test/xai-oauth.json.
+  --force               Allow replacing an existing explicit or live token state file.
   --check               Verify the selected token file without opening login.
   --no-browser          Print the auth URL and wait instead of opening a browser.
   --print-url-only      Print a disposable auth URL for smoke testing, then exit.
@@ -116,7 +127,10 @@ Options:
   --timeout <seconds>   Login wait timeout. Default: 600.
 
 Safe test example:
-  npm run login:grok -- --output ~/.grok-video-web/login-test/xai-oauth.json
+  vpr login
+
+Live token repair:
+  vpr login --live --force
 `);
 }
 

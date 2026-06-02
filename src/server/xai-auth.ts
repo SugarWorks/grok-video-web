@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
+import path from "node:path";
 import type { AppConfig } from "./config.js";
 
 const XAI_OAUTH_ISSUER = "https://auth.x.ai";
@@ -39,6 +40,7 @@ export async function resolveXaiAuth(config: AppConfig): Promise<XaiRuntimeAuth>
     return { token: config.xai.oauthToken, label: "xai-oauth", baseUrl: config.xai.baseUrl };
   }
 
+  seedTokenFileFromEnv(config);
   if (!fs.existsSync(config.xai.oauthTokenFile)) {
     throw new Error(`XAI_OAUTH_TOKEN_FILE not found: ${config.xai.oauthTokenFile}`);
   }
@@ -70,6 +72,24 @@ export function randomId(prefix = "job"): string {
 function readTokenState(filePath: string): XaiOAuthTokenState {
   const raw = fs.readFileSync(filePath, "utf8").trim();
   return raw ? (JSON.parse(raw) as XaiOAuthTokenState) : {};
+}
+
+function seedTokenFileFromEnv(config: AppConfig): void {
+  if (fs.existsSync(config.xai.oauthTokenFile)) return;
+  const encodedState = config.xai.oauthTokenStateB64;
+  const rawState = encodedState
+    ? Buffer.from(encodedState, "base64").toString("utf8")
+    : config.xai.oauthTokenStateJson;
+  if (!rawState) return;
+  const state = JSON.parse(rawState) as XaiOAuthTokenState;
+  if (
+    !cleanBearerToken(state.tokens?.access_token) &&
+    !cleanBearerToken(state.tokens?.refresh_token)
+  ) {
+    throw new Error("XAI_OAUTH_TOKEN_STATE does not include usable xAI OAuth tokens.");
+  }
+  fs.mkdirSync(path.dirname(config.xai.oauthTokenFile), { recursive: true });
+  writeTokenState(config.xai.oauthTokenFile, state);
 }
 
 function writeTokenState(filePath: string, state: XaiOAuthTokenState): void {

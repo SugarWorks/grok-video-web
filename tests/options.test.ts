@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 import { buildXaiVideoRequest } from "../src/server/xai-video.js";
 import type { AppConfig } from "../src/server/config.js";
+import { resolveXaiAuth } from "../src/server/xai-auth.js";
 import {
   composePrompt,
   defaultGenerationOptions,
@@ -75,6 +76,36 @@ describe("xAI request body", () => {
   });
 });
 
+describe("hosted xAI OAuth config", () => {
+  it("seeds token state from a base64 environment secret", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "grok-video-oauth-"));
+    const tokenFile = path.join(dir, "xai-oauth.json");
+    const tokenState = {
+      tokens: {
+        access_token: fakeJwtWithExpiry(Date.now() + 60 * 60 * 1000),
+        refresh_token: "refresh-token",
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      },
+      base_url: "https://api.x.ai/v1",
+    };
+    const auth = await resolveXaiAuth({
+      ...fakeConfig(),
+      xai: {
+        authMode: "oauth",
+        oauthTokenFile: tokenFile,
+        oauthTokenStateB64: Buffer.from(JSON.stringify(tokenState), "utf8").toString("base64"),
+        baseUrl: "https://api.x.ai/v1",
+        model: "grok-imagine-video",
+      },
+    });
+    expect(auth.label).toBe("xai-oauth");
+    expect(fs.existsSync(tokenFile)).toBe(true);
+    expect(JSON.parse(fs.readFileSync(tokenFile, "utf8")).tokens.refresh_token).toBe(
+      "refresh-token",
+    );
+  });
+});
+
 function fakeConfig(): AppConfig {
   return {
     host: "127.0.0.1",
@@ -97,4 +128,11 @@ function fakeConfig(): AppConfig {
       maxVariations: 3,
     },
   };
+}
+
+function fakeJwtWithExpiry(expiryMs: number): string {
+  const payload = Buffer.from(JSON.stringify({ exp: Math.floor(expiryMs / 1000) })).toString(
+    "base64url",
+  );
+  return `header.${payload}.signature`;
 }

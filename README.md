@@ -35,11 +35,52 @@ Then restart the service and open `http://<mac-lan-ip>:8787` or `http://<mac-loc
 - `ACCESS_TOKEN` is optional. Leave it empty for personal local/LAN use; set it only if you intentionally expose the app outside a trusted LAN.
 - `WORKSPACE_DIR` stores `images/`, `videos/`, and `jobs/`.
 - `XAI_AUTH_MODE=oauth` reads `XAI_OAUTH_TOKEN_FILE`, refreshes it when needed, and `npm run launch` can bootstrap it interactively.
+- Hosted deployments can set `XAI_OAUTH_TOKEN_STATE_B64` to a base64-encoded xAI OAuth token-state JSON. On first boot the app writes it to `XAI_OAUTH_TOKEN_FILE` with `0600` permissions, then refreshes that file normally.
 - `XAI_AUTH_MODE=api_key` uses `XAI_API_KEY`.
 - `DEFAULT_DURATION_SECONDS` supports up to 15 seconds.
 - `MAX_VARIATIONS` limits sequential variations per job.
 
 The app binds to `127.0.0.1` by default. Use `HOST=0.0.0.0` only for LAN/tunnel exposure.
+
+## Sugarworks / Suga Deployment
+
+This repo is ready for a Suga **Container** service. The checked-in `Dockerfile` builds the Vite+ client, compiles the Node server, exposes port `8080`, and stores generated images/videos/job metadata under `/data`.
+
+Suggested Suga service config:
+
+- Source: GitHub repo `pengx17/grok-video-web`
+- Service type: Container
+- Private port: `8080`
+- Public endpoint: HTTPS Domain -> private port `8080`
+- Volume: mount a persistent volume at `/data`
+- Build: Dockerfile in repo root
+- Start command: default image command, or `node dist/server/server/server.js`
+
+Environment variables:
+
+```dotenv
+HOST=0.0.0.0
+PORT=8080
+WORKSPACE_DIR=/data
+ACCESS_TOKEN=
+XAI_AUTH_MODE=oauth
+XAI_OAUTH_TOKEN_FILE=/data/xai-oauth.json
+XAI_OAUTH_TOKEN_STATE_B64=<sensitive base64 token-state JSON>
+XAI_BASE_URL=https://api.x.ai/v1
+XAI_VIDEO_MODEL=grok-imagine-video
+DEFAULT_DURATION_SECONDS=6
+MAX_VARIATIONS=3
+```
+
+Mark `XAI_OAUTH_TOKEN_STATE_B64` as Sensitive in Suga. If using a direct API key instead of subscription OAuth, set `XAI_AUTH_MODE=api_key` and mark `XAI_API_KEY` as Sensitive.
+
+To copy the current local Linger Grok OAuth token-state into the clipboard without printing it:
+
+```bash
+base64 -i ~/.linger/xai-oauth.json | tr -d '\n' | pbcopy
+```
+
+Paste the clipboard value into Suga's sensitive `XAI_OAUTH_TOKEN_STATE_B64` variable.
 
 ## Test Grok Login Flow
 

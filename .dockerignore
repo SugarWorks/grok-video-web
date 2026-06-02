@@ -1,0 +1,10 @@
+.git
+.env
+dist
+node_modules
+coverage
+playwright-report
+test-results
+workspace
+npm-debug.log*
+

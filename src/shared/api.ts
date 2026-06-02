@@ -32,6 +32,7 @@ export type JobRecord = {
   sourceImageUrl: string;
   sourceImagePath: string;
   options: GenerationOptions;
+  submittedPrompt?: string;
   progress: string[];
   results: JobResult[];
   error?: string;

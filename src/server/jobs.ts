@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { JobRecord } from "../shared/api.js";
-import type { GenerationOptions } from "../shared/options.js";
+import { composePrompt, type GenerationOptions, generationOptionsSchema } from "../shared/options.js";
 import type { AppConfig } from "./config.js";
 import { generateGrokImageVideo } from "./xai-video.js";
 
@@ -42,6 +42,7 @@ export class JobStore {
       sourceImageUrl: input.imageUrl,
       sourceImagePath: input.imagePath,
       options: input.options,
+      submittedPrompt: composePrompt(input.options),
       progress: ["queued"],
       results: [],
     };
@@ -110,13 +111,22 @@ export class JobStore {
     for (const file of fs.readdirSync(this.jobsDir)) {
       if (!file.endsWith(".json")) continue;
       try {
-        const job = JSON.parse(fs.readFileSync(path.join(this.jobsDir, file), "utf8")) as JobRecord;
+        const job = normalizeLoadedJob(JSON.parse(fs.readFileSync(path.join(this.jobsDir, file), "utf8")));
         this.jobs.set(job.id, job);
       } catch {
         // Ignore corrupt historical metadata; generated media remains on disk.
       }
     }
   }
+}
+
+function normalizeLoadedJob(value: unknown): JobRecord {
+  const job = value as JobRecord;
+  const options = generationOptionsSchema.safeParse(job.options);
+  if (!job.submittedPrompt && options.success) {
+    return { ...job, submittedPrompt: composePrompt(options.data) };
+  }
+  return job;
 }
 
 export function fileUrl(workspaceDir: string, kind: "images" | "videos", filename: string): string {
@@ -131,4 +141,3 @@ export function workspacePath(config: AppConfig, kind: "images" | "videos", file
 function cryptoRandom(): string {
   return globalThis.crypto.randomUUID().replace(/-/g, "").slice(0, 16);
 }
-

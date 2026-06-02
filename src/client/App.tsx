@@ -1,9 +1,10 @@
-import { Download, Film, ImagePlus, KeyRound, Loader2, Play, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import { Copy, Download, Film, ImagePlus, KeyRound, Loader2, Play, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { JobRecord, PublicConfig } from "../shared/api";
 import {
   ASPECT_RATIOS,
   CAMERA_MODES,
+  composePrompt,
   defaultGenerationOptions,
   INTENSITIES,
   OUTPUT_STYLES,
@@ -35,6 +36,8 @@ export default function App() {
     : defaultGenerationOptions({ durationSeconds: 6, resolution: "720p", aspectRatio: "source" });
   const [options, setOptions] = useState<GenerationOptions>(defaults);
   const selectedJob = jobs.find((job) => job.id === selectedJobId) ?? jobs[0];
+  const submittedPrompt = useMemo(() => composePrompt({ ...options, prompt }), [options, prompt]);
+  const selectedJobPrompt = selectedJob?.submittedPrompt ?? (selectedJob ? composePrompt(selectedJob.options) : "");
 
   const authHeader = useMemo(() => {
     const headers = new Headers();
@@ -136,6 +139,11 @@ export default function App() {
     setOptions((current) => ({ ...current, ...patch }));
   }
 
+  async function copyPrompt(text: string) {
+    await navigator.clipboard.writeText(text);
+    setToast({ tone: "ok", text: "Prompt 已复制。" });
+  }
+
   if (!config) {
     return (
       <main className="gate">
@@ -165,7 +173,7 @@ export default function App() {
     <main className="shell">
       <header className="topbar">
         <div>
-          <div className="eyebrow"><ShieldCheck size={15} /> selfhost · 127.0.0.1</div>
+          <div className="eyebrow"><ShieldCheck size={15} /> selfhost · LAN tool</div>
           <h1>Grok Video Studio</h1>
         </div>
         <button className="ghost" type="button" onClick={() => void loadJobs()} title="刷新历史">
@@ -214,6 +222,8 @@ export default function App() {
             <Toggle label="不改字" active={options.avoidTextMutation} onClick={() => patchOptions({ avoidTextMutation: !options.avoidTextMutation })} />
             <Toggle label="可循环" active={options.loopFriendly} onClick={() => patchOptions({ loopFriendly: !options.loopFriendly })} />
           </div>
+
+          <PromptPanel title="原始 Prompt" value={submittedPrompt} onCopy={() => void copyPrompt(submittedPrompt)} />
         </div>
 
         <div className="controls-pane">
@@ -282,6 +292,7 @@ export default function App() {
               <ol className="progress-list">
                 {selectedJob.progress.slice(-8).map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
               </ol>
+              {selectedJobPrompt && <PromptPanel title="任务 Prompt" value={selectedJobPrompt} onCopy={() => void copyPrompt(selectedJobPrompt)} />}
             </>
           ) : <div className="pending"><Film size={34} /><p>生成后会出现在这里</p></div>}
         </div>
@@ -310,6 +321,21 @@ function ControlSection(props: { title: string; children: React.ReactNode }) {
 
 function Toggle(props: { label: string; active: boolean; onClick: () => void }) {
   return <button type="button" className={`toggle ${props.active ? "active" : ""}`} onClick={props.onClick}>{props.label}</button>;
+}
+
+function PromptPanel(props: { title: string; value: string; onCopy: () => void }) {
+  return (
+    <section className="prompt-preview">
+      <div className="prompt-preview-head">
+        <span>{props.title}</span>
+        <button type="button" onClick={props.onCopy} title="复制 prompt">
+          <Copy size={15} />
+          复制
+        </button>
+      </div>
+      <pre>{props.value || "Prompt 为空时只使用参数生成的保图/镜头/声音约束。"}</pre>
+    </section>
+  );
 }
 
 function Segment<T extends string | number>(props: {

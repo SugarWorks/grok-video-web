@@ -22,6 +22,7 @@ try {
   await page.waitForLoadState("networkidle");
   await page.waitForSelector("text=Grok Video Studio", { timeout: 10_000 });
   await page.waitForSelector("text=动作预设", { timeout: 10_000 });
+  await page.waitForSelector("text=原始 Prompt", { timeout: 10_000 });
   await page.waitForSelector("text=开始生成", { timeout: 10_000 });
   await page.evaluate(() => {
     const pngBytes = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="), (char) => char.charCodeAt(0));

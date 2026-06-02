@@ -182,161 +182,176 @@ export default function App() {
         </button>
       </header>
 
-      <section className="workspace">
-        <div className="source-pane">
-          <PaneTitle step="1" title="输入图片" description="拖拽、点击选择，或直接粘贴截图。" />
-          <div
-            className={`dropzone ${imagePreview ? "has-image" : ""}`}
-            onDrop={(event) => {
-              event.preventDefault();
-              chooseFile(event.dataTransfer.files[0] ?? null);
-            }}
-            onDragOver={(event) => event.preventDefault()}
-            onClick={() => fileInput.current?.click()}
-          >
-            <input
-              ref={fileInput}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
-            />
-            {imagePreview ? <img src={imagePreview} alt="source preview" /> : (
-              <div className="empty-upload">
-                <ImagePlus size={38} />
-                <span>拖入 / 粘贴图片 / 点击选择</span>
+      <div className="app-layout">
+        <aside className="history-sidebar" aria-label="任务历史">
+          <div className="history-head">
+            <span>历史</span>
+            <small>{jobs.length} 个任务</small>
+          </div>
+          <div className="history-list">
+            {jobs.length > 0 ? jobs.map((job, index) => (
+              <button
+                type="button"
+                key={job.id}
+                className={job.id === selectedJob?.id ? "active" : ""}
+                onClick={() => setSelectedJobId(job.id)}
+              >
+                <img src={withToken(job.sourceImageUrl)} alt="" />
+                <span className={`history-status ${job.status}`}>{shortStatusLabel(job)}</span>
+                <strong>任务 #{jobs.length - index}</strong>
+                <small>{jobSummary(job)} · {formatDate(job.updatedAt)}</small>
+              </button>
+            )) : (
+              <div className="empty-history">
+                <Film size={24} />
+                <p>还没有历史任务</p>
               </div>
             )}
           </div>
-          <p className="input-hint">截图后可直接 Cmd+V；也支持 Finder / 浏览器复制图片后粘贴。</p>
+        </aside>
 
-          <label className="prompt-box">
-            <span>
-              画面动作
-              <small>只写你希望发生的变化，保图约束会自动补全。</small>
-            </span>
-            <textarea
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder="例：轻微回眸，衣服被风带起一点，保持脸和构图稳定"
-            />
-          </label>
-
-          <div className="mini-title">保真开关</div>
-          <div className="toggles">
-            <Toggle label="保图" active={options.preserveSource} onClick={() => patchOptions({ preserveSource: !options.preserveSource })} />
-            <Toggle label="不改字" active={options.avoidTextMutation} onClick={() => patchOptions({ avoidTextMutation: !options.avoidTextMutation })} />
-            <Toggle label="可循环" active={options.loopFriendly} onClick={() => patchOptions({ loopFriendly: !options.loopFriendly })} />
-          </div>
-        </div>
-
-        <div className="controls-pane">
-          <PaneTitle step="2" title="调参数" description="先选动作预设，再微调时长、镜头和声音。" />
-          <ControlSection title="动作预设">
-            <div className="preset-grid">
-              {VIDEO_MOTION_PRESETS.map((preset) => (
-                <button
-                  key={preset.id}
-                  className={`preset ${options.presetId === preset.id ? "selected" : ""}`}
-                  type="button"
-                  onClick={() => patchOptions({ presetId: options.presetId === preset.id ? undefined : preset.id, camera: preset.camera ?? options.camera, durationSeconds: preset.durationSeconds ?? options.durationSeconds })}
-                >
-                  <b>{preset.label}</b>
-                  <span>{preset.description}</span>
-                </button>
-              ))}
-            </div>
-          </ControlSection>
-
-          <ControlSection title="生成参数">
-            <Segment label="时长" values={[4, 5, 6, 8, 10, 12, 15]} value={options.durationSeconds} format={(value) => `${value}s`} onChange={(value) => patchOptions({ durationSeconds: value })} />
-            <Segment label="清晰度" values={[...RESOLUTIONS]} value={options.resolution} onChange={(value) => patchOptions({ resolution: value })} />
-            <Segment label="比例" values={[...ASPECT_RATIOS]} value={options.aspectRatio} onChange={(value) => patchOptions({ aspectRatio: value })} />
-            <Segment label="张数" values={[1, 2, 3]} value={options.count} format={(value) => `${value}x`} onChange={(value) => patchOptions({ count: value })} />
-          </ControlSection>
-
-          <ControlSection title="导演控制">
-            <Segment label="镜头" values={[...CAMERA_MODES]} value={options.camera} onChange={(value) => patchOptions({ camera: value })} />
-            <Segment label="运动" values={[...INTENSITIES]} value={options.intensity} onChange={(value) => patchOptions({ intensity: value })} />
-            <Segment label="风格" values={[...OUTPUT_STYLES]} value={options.outputStyle} onChange={(value) => patchOptions({ outputStyle: value })} />
-            <Segment label="声音" values={[...SOUND_MODES]} value={options.sound} onChange={(value) => patchOptions({ sound: value })} />
-          </ControlSection>
-
-          <PromptDisclosure
-            title="原始 Prompt"
-            description="Grok 实际收到的完整文本，可展开核对。"
-            value={submittedPrompt}
-            onCopy={() => void copyPrompt(submittedPrompt)}
-          />
-
-          <button className="generate" type="button" disabled={submitting || !imageFile} onClick={() => void submit()}>
-            {submitting ? <Loader2 className="spin" size={19} /> : <Play size={19} />}
-            {submitting ? "生成中" : imageFile ? "生成视频" : "先添加图片"}
-          </button>
-          {!imageFile && <p className="generate-note">先添加一张源图，按钮会自动解锁。</p>}
-          {toast && <div className={`toast ${toast.tone}`}>{toast.text}</div>}
-        </div>
-
-        <div className="result-pane">
-          <PaneTitle
-            step="3"
-            title="结果"
-            description={selectedJob ? jobSummary(selectedJob) : "生成后自动出现在这里。"}
-          />
-          {selectedJob ? (
-            <>
-              <div className="job-status-bar">
-                <span className={`job-pill ${selectedJob.status}`}>{statusLabel(selectedJob)}</span>
-                <span>{selectedJob.results.length}/{selectedJob.options.count} 个结果</span>
-                <span>{formatDate(selectedJob.updatedAt)}</span>
-              </div>
-              <div className="video-stack">
-                {selectedJob.results.length > 0 ? selectedJob.results.map((result) => (
-                  <article className="video-card" key={result.requestId}>
-                    <video src={withToken(result.url)} controls playsInline />
-                    <a href={withToken(result.url)} download>
-                      <Download size={16} />
-                      下载 #{result.index}
-                    </a>
-                  </article>
-                )) : (
-                  <div className="pending">
-                    <Film size={34} />
-                    <p>{formatProgressItem(selectedJob.progress.at(-1) ?? selectedJob.status)}</p>
-                  </div>
-                )}
-              </div>
-              <details className="progress-log">
-                <summary>任务日志</summary>
-                <ol>
-                  {selectedJob.progress.slice(-8).map((item, index) => <li key={`${item}-${index}`}>{formatProgressItem(item)}</li>)}
-                </ol>
-              </details>
-              {selectedJobPrompt && (
-                <PromptDisclosure
-                  title="任务 Prompt"
-                  description="这次任务提交时的原始 prompt。"
-                  value={selectedJobPrompt}
-                  onCopy={() => void copyPrompt(selectedJobPrompt)}
-                />
+        <section className="workspace">
+          <div className="source-pane">
+            <PaneTitle step="1" title="输入图片" description="拖拽、点击选择，或直接粘贴截图。" />
+            <div
+              className={`dropzone ${imagePreview ? "has-image" : ""}`}
+              onDrop={(event) => {
+                event.preventDefault();
+                chooseFile(event.dataTransfer.files[0] ?? null);
+              }}
+              onDragOver={(event) => event.preventDefault()}
+              onClick={() => fileInput.current?.click()}
+            >
+              <input
+                ref={fileInput}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) => chooseFile(event.target.files?.[0] ?? null)}
+              />
+              {imagePreview ? <img src={imagePreview} alt="source preview" /> : (
+                <div className="empty-upload">
+                  <ImagePlus size={38} />
+                  <span>拖入 / 粘贴图片 / 点击选择</span>
+                </div>
               )}
-            </>
-          ) : <div className="pending"><Film size={34} /><p>生成后会出现在这里</p></div>}
-        </div>
-      </section>
+            </div>
+            <p className="input-hint">截图后可直接 Cmd+V；也支持 Finder / 浏览器复制图片后粘贴。</p>
 
-      <aside className="history-rail">
-        {jobs.map((job) => (
-          <button
-            type="button"
-            key={job.id}
-            className={job.id === selectedJob?.id ? "active" : ""}
-            onClick={() => setSelectedJobId(job.id)}
-          >
-            <img src={withToken(job.sourceImageUrl)} alt="" />
-            <span>{job.status}</span>
-          </button>
-        ))}
-      </aside>
+            <label className="prompt-box">
+              <span>
+                画面动作
+                <small>只写你希望发生的变化，保图约束会自动补全。</small>
+              </span>
+              <textarea
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder="例：轻微回眸，衣服被风带起一点，保持脸和构图稳定"
+              />
+            </label>
+
+            <div className="mini-title">保真开关</div>
+            <div className="toggles">
+              <Toggle label="保图" active={options.preserveSource} onClick={() => patchOptions({ preserveSource: !options.preserveSource })} />
+              <Toggle label="不改字" active={options.avoidTextMutation} onClick={() => patchOptions({ avoidTextMutation: !options.avoidTextMutation })} />
+              <Toggle label="可循环" active={options.loopFriendly} onClick={() => patchOptions({ loopFriendly: !options.loopFriendly })} />
+            </div>
+          </div>
+
+          <div className="controls-pane">
+            <PaneTitle step="2" title="调参数" description="先选动作预设，再微调时长、镜头和声音。" />
+            <ControlSection title="动作预设">
+              <div className="preset-grid">
+                {VIDEO_MOTION_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    className={`preset ${options.presetId === preset.id ? "selected" : ""}`}
+                    type="button"
+                    onClick={() => patchOptions({ presetId: options.presetId === preset.id ? undefined : preset.id, camera: preset.camera ?? options.camera, durationSeconds: preset.durationSeconds ?? options.durationSeconds })}
+                  >
+                    <b>{preset.label}</b>
+                    <span>{preset.description}</span>
+                  </button>
+                ))}
+              </div>
+            </ControlSection>
+
+            <ControlSection title="生成参数">
+              <Segment label="时长" values={[4, 5, 6, 8, 10, 12, 15]} value={options.durationSeconds} format={(value) => `${value}s`} onChange={(value) => patchOptions({ durationSeconds: value })} />
+              <Segment label="清晰度" values={[...RESOLUTIONS]} value={options.resolution} onChange={(value) => patchOptions({ resolution: value })} />
+              <Segment label="比例" values={[...ASPECT_RATIOS]} value={options.aspectRatio} onChange={(value) => patchOptions({ aspectRatio: value })} />
+              <Segment label="张数" values={[1, 2, 3]} value={options.count} format={(value) => `${value}x`} onChange={(value) => patchOptions({ count: value })} />
+            </ControlSection>
+
+            <ControlSection title="导演控制">
+              <Segment label="镜头" values={[...CAMERA_MODES]} value={options.camera} onChange={(value) => patchOptions({ camera: value })} />
+              <Segment label="运动" values={[...INTENSITIES]} value={options.intensity} onChange={(value) => patchOptions({ intensity: value })} />
+              <Segment label="风格" values={[...OUTPUT_STYLES]} value={options.outputStyle} onChange={(value) => patchOptions({ outputStyle: value })} />
+              <Segment label="声音" values={[...SOUND_MODES]} value={options.sound} onChange={(value) => patchOptions({ sound: value })} />
+            </ControlSection>
+
+            <PromptDisclosure
+              title="原始 Prompt"
+              description="Grok 实际收到的完整文本，可展开核对。"
+              value={submittedPrompt}
+              onCopy={() => void copyPrompt(submittedPrompt)}
+            />
+
+            <button className="generate" type="button" disabled={submitting || !imageFile} onClick={() => void submit()}>
+              {submitting ? <Loader2 className="spin" size={19} /> : <Play size={19} />}
+              {submitting ? "生成中" : imageFile ? "生成视频" : "先添加图片"}
+            </button>
+            {!imageFile && <p className="generate-note">先添加一张源图，按钮会自动解锁。</p>}
+            {toast && <div className={`toast ${toast.tone}`}>{toast.text}</div>}
+          </div>
+
+          <div className="result-pane">
+            <PaneTitle
+              step="3"
+              title="结果"
+              description={selectedJob ? jobSummary(selectedJob) : "生成后自动出现在这里。"}
+            />
+            {selectedJob ? (
+              <>
+                <div className="job-status-bar">
+                  <span className={`job-pill ${selectedJob.status}`}>{statusLabel(selectedJob)}</span>
+                  <span>{selectedJob.results.length}/{selectedJob.options.count} 个结果</span>
+                  <span>{formatDate(selectedJob.updatedAt)}</span>
+                </div>
+                <div className="video-stack">
+                  {selectedJob.results.length > 0 ? selectedJob.results.map((result) => (
+                    <article className="video-card" key={result.requestId}>
+                      <video src={withToken(result.url)} controls playsInline />
+                      <a href={withToken(result.url)} download>
+                        <Download size={16} />
+                        下载 #{result.index}
+                      </a>
+                    </article>
+                  )) : (
+                    <div className="pending">
+                      <Film size={34} />
+                      <p>{formatProgressItem(selectedJob.progress.at(-1) ?? selectedJob.status)}</p>
+                    </div>
+                  )}
+                </div>
+                <details className="progress-log">
+                  <summary>任务日志</summary>
+                  <ol>
+                    {selectedJob.progress.slice(-8).map((item, index) => <li key={`${item}-${index}`}>{formatProgressItem(item)}</li>)}
+                  </ol>
+                </details>
+                {selectedJobPrompt && (
+                  <PromptDisclosure
+                    title="任务 Prompt"
+                    description="这次任务提交时的原始 prompt。"
+                    value={selectedJobPrompt}
+                    onCopy={() => void copyPrompt(selectedJobPrompt)}
+                  />
+                )}
+              </>
+            ) : <div className="pending"><Film size={34} /><p>生成后会出现在这里</p></div>}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }
@@ -415,6 +430,13 @@ function statusLabel(job: JobRecord) {
   if (job.status === "failed") return `失败：${job.error ?? ""}`;
   if (job.status === "running") return "生成中";
   return "排队中";
+}
+
+function shortStatusLabel(job: JobRecord) {
+  if (job.status === "succeeded") return "完成";
+  if (job.status === "failed") return "失败";
+  if (job.status === "running") return "生成中";
+  return "排队";
 }
 
 function jobSummary(job: JobRecord) {

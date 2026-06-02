@@ -29,7 +29,9 @@ async function ensureAuthReady(): Promise<void> {
     return;
   } catch (error) {
     if (fs.existsSync(config.xai.oauthTokenFile)) {
-      console.warn(`xAI OAuth token check failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.warn(
+        `xAI OAuth token check failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       console.warn("Starting OAuth login to repair the token state.");
     } else {
       console.log(`No xAI OAuth token found at ${config.xai.oauthTokenFile}. Starting login.`);

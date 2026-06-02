@@ -5,7 +5,7 @@ Self-hosted Grok image-to-video workspace for local use. It serves a private bro
 ## Run
 
 ```bash
-npm install
+vp install
 cp .env.example .env
 npm run build
 npm start
@@ -63,8 +63,11 @@ npm run login:grok -- --print-url-only
 
 ## Quality Loop
 
+Vite+ (`vp`) owns frontend build, lint/format/type checks, and tests. The npm scripts keep the server TypeScript build wired in:
+
 ```bash
 npm run check
 npm test
 npm run build
+npm run smoke
 ```

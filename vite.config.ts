@@ -1,7 +1,13 @@
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react-oxc";
+import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  fmt: {},
+  lint: {
+    jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
+    rules: { "vite-plus/prefer-vite-plus-imports": "error" },
+    options: { typeAware: true, typeCheck: true },
+  },
   plugins: [react()],
   build: {
     outDir: "dist/client",
@@ -12,4 +18,3 @@ export default defineConfig({
     port: 8787,
   },
 });
-

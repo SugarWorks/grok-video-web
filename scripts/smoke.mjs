@@ -32,11 +32,18 @@ try {
     await page.waitForSelector("text=生成视频", { timeout: 10_000 });
   }
   await page.evaluate(() => {
-    const pngBytes = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="), (char) => char.charCodeAt(0));
+    const pngBytes = Uint8Array.from(
+      atob(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+      ),
+      (char) => char.charCodeAt(0),
+    );
     const file = new File([pngBytes], "pasted-smoke.png", { type: "image/png" });
     const transfer = new DataTransfer();
     transfer.items.add(file);
-    window.dispatchEvent(new ClipboardEvent("paste", { clipboardData: transfer, bubbles: true, cancelable: true }));
+    window.dispatchEvent(
+      new ClipboardEvent("paste", { clipboardData: transfer, bubbles: true, cancelable: true }),
+    );
   });
   await page.waitForSelector('img[alt="source preview"]', { timeout: 10_000 });
   await page.waitForSelector("text=已从剪贴板粘贴图片。", { timeout: 10_000 });

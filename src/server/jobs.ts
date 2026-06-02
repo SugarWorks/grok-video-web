@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { JobRecord } from "../shared/api.js";
-import { composePrompt, type GenerationOptions, generationOptionsSchema } from "../shared/options.js";
+import {
+  composePrompt,
+  type GenerationOptions,
+  generationOptionsSchema,
+} from "../shared/options.js";
 import type { AppConfig } from "./config.js";
 import { generateGrokImageVideo } from "./xai-video.js";
 
@@ -61,7 +65,8 @@ export class JobStore {
           imagePath: job.sourceImagePath,
           options: job.options,
           jobId: `${job.id}_${index + 1}`,
-          onStatus: (status) => this.appendProgress(job.id, `${index + 1}/${job.options.count}:${status}`),
+          onStatus: (status) =>
+            this.appendProgress(job.id, `${index + 1}/${job.options.count}:${status}`),
         });
         const current = this.get(job.id);
         if (!current) return;
@@ -78,7 +83,10 @@ export class JobStore {
           ],
         });
       }
-      this.update(job.id, { status: "succeeded", progress: [...(this.get(job.id)?.progress ?? []), "done"] });
+      this.update(job.id, {
+        status: "succeeded",
+        progress: [...(this.get(job.id)?.progress ?? []), "done"],
+      });
     } catch (error) {
       this.update(job.id, {
         status: "failed",
@@ -103,7 +111,10 @@ export class JobStore {
   }
 
   private persist(job: JobRecord): void {
-    fs.writeFileSync(path.join(this.jobsDir, `${job.id}.json`), `${JSON.stringify(job, null, 2)}\n`);
+    fs.writeFileSync(
+      path.join(this.jobsDir, `${job.id}.json`),
+      `${JSON.stringify(job, null, 2)}\n`,
+    );
   }
 
   private loadExistingJobs(): void {
@@ -111,7 +122,9 @@ export class JobStore {
     for (const file of fs.readdirSync(this.jobsDir)) {
       if (!file.endsWith(".json")) continue;
       try {
-        const job = normalizeLoadedJob(JSON.parse(fs.readFileSync(path.join(this.jobsDir, file), "utf8")));
+        const job = normalizeLoadedJob(
+          JSON.parse(fs.readFileSync(path.join(this.jobsDir, file), "utf8")),
+        );
         this.jobs.set(job.id, job);
       } catch {
         // Ignore corrupt historical metadata; generated media remains on disk.
@@ -134,7 +147,11 @@ export function fileUrl(workspaceDir: string, kind: "images" | "videos", filenam
   return `/api/files/${kind}/${encodeURIComponent(safe)}`;
 }
 
-export function workspacePath(config: AppConfig, kind: "images" | "videos", filename: string): string {
+export function workspacePath(
+  config: AppConfig,
+  kind: "images" | "videos",
+  filename: string,
+): string {
   return path.join(config.workspaceDir, kind, path.basename(filename));
 }
 

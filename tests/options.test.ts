@@ -1,10 +1,14 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vite-plus/test";
 import { buildXaiVideoRequest } from "../src/server/xai-video.js";
 import type { AppConfig } from "../src/server/config.js";
-import { composePrompt, defaultGenerationOptions, normalizeGenerationOptions } from "../src/shared/options.js";
+import {
+  composePrompt,
+  defaultGenerationOptions,
+  normalizeGenerationOptions,
+} from "../src/shared/options.js";
 
 const defaults = defaultGenerationOptions({
   durationSeconds: 6,
@@ -14,17 +18,21 @@ const defaults = defaultGenerationOptions({
 
 describe("generation options", () => {
   it("normalizes rich controls and caps variations", () => {
-    const parsed = normalizeGenerationOptions({
-      prompt: "slow smile",
-      presetId: "outfit_turn",
-      resolution: "480p",
-      aspectRatio: "9:16",
-      camera: "user",
-      sound: "music",
-      intensity: "bold",
-      outputStyle: "cinematic",
-      count: 9,
-    }, defaults, 3);
+    const parsed = normalizeGenerationOptions(
+      {
+        prompt: "slow smile",
+        presetId: "outfit_turn",
+        resolution: "480p",
+        aspectRatio: "9:16",
+        camera: "user",
+        sound: "music",
+        intensity: "bold",
+        outputStyle: "cinematic",
+        count: 9,
+      },
+      defaults,
+      3,
+    );
     expect(parsed.durationSeconds).toBe(8);
     expect(parsed.count).toBe(3);
     expect(parsed.aspectRatio).toBe("9:16");
@@ -90,4 +98,3 @@ function fakeConfig(): AppConfig {
     },
   };
 }
-

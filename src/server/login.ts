@@ -34,7 +34,9 @@ if (args.check) {
 
 if (fs.existsSync(outputPath) && !args.force && !args.printUrlOnly) {
   console.error(`Refusing to overwrite existing token state: ${outputPath}`);
-  console.error("Pass --force to refresh this token file, or --output <path> to test into a separate file.");
+  console.error(
+    "Pass --force to refresh this token file, or --output <path> to test into a separate file.",
+  );
   process.exit(1);
 }
 
@@ -126,7 +128,8 @@ function requireValue(values: string[], index: number, flag: string): string {
 
 function parseInteger(value: string, flag: string): number {
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0) throw new Error(`${flag} requires a positive integer.`);
+  if (!Number.isInteger(parsed) || parsed <= 0)
+    throw new Error(`${flag} requires a positive integer.`);
   return parsed;
 }
 

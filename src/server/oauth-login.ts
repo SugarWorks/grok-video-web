@@ -80,8 +80,8 @@ export async function runXaiOauthLogin(options: LoginOptions): Promise<void> {
       verifier,
       challenge,
     });
-    const accessToken = String(tokenPayload.access_token ?? "").trim();
-    const refreshToken = String(tokenPayload.refresh_token ?? "").trim();
+    const accessToken = stringValue(tokenPayload.access_token).trim();
+    const refreshToken = stringValue(tokenPayload.refresh_token).trim();
     if (!accessToken || !refreshToken) {
       throw new Error("xAI token exchange did not return access_token + refresh_token.");
     }
@@ -90,12 +90,13 @@ export async function runXaiOauthLogin(options: LoginOptions): Promise<void> {
       tokens: {
         access_token: accessToken,
         refresh_token: refreshToken,
-        id_token: String(tokenPayload.id_token ?? ""),
+        id_token: stringValue(tokenPayload.id_token),
         expires_in: Number.isFinite(expiresIn) && expiresIn > 0 ? Math.floor(expiresIn) : undefined,
-        expires_at: Number.isFinite(expiresIn) && expiresIn > 0
-          ? new Date(Date.now() + expiresIn * 1000).toISOString()
-          : undefined,
-        token_type: String(tokenPayload.token_type ?? "Bearer") || "Bearer",
+        expires_at:
+          Number.isFinite(expiresIn) && expiresIn > 0
+            ? new Date(Date.now() + expiresIn * 1000).toISOString()
+            : undefined,
+        token_type: stringValue(tokenPayload.token_type) || "Bearer",
       },
       discovery,
       redirect_uri: redirectUri,
@@ -110,12 +111,16 @@ export async function runXaiOauthLogin(options: LoginOptions): Promise<void> {
 }
 
 async function fetchDiscovery(): Promise<Discovery> {
-  const response = await fetch(DISCOVERY_URL, { headers: { "Accept": "application/json" } });
-  if (!response.ok) throw new Error(`xAI discovery failed: ${response.status} ${response.statusText}`);
-  const json = await response.json() as Record<string, unknown>;
+  const response = await fetch(DISCOVERY_URL, { headers: { Accept: "application/json" } });
+  if (!response.ok)
+    throw new Error(`xAI discovery failed: ${response.status} ${response.statusText}`);
+  const json = (await response.json()) as Record<string, unknown>;
   return {
-    authorization_endpoint: validateXaiEndpoint(String(json.authorization_endpoint ?? ""), "authorization_endpoint"),
-    token_endpoint: validateXaiEndpoint(String(json.token_endpoint ?? ""), "token_endpoint"),
+    authorization_endpoint: validateXaiEndpoint(
+      stringValue(json.authorization_endpoint),
+      "authorization_endpoint",
+    ),
+    token_endpoint: validateXaiEndpoint(stringValue(json.token_endpoint), "token_endpoint"),
   };
 }
 
@@ -151,7 +156,7 @@ async function exchangeCodeForTokens(input: {
   const response = await fetch(input.tokenEndpoint, {
     method: "POST",
     headers: {
-      "Accept": "application/json",
+      Accept: "application/json",
       "Content-Type": "application/x-www-form-urlencoded",
     },
     body: new URLSearchParams({
@@ -166,7 +171,9 @@ async function exchangeCodeForTokens(input: {
   });
   if (!response.ok) {
     const body = await response.text().catch(() => "");
-    throw new Error(`xAI token exchange failed: ${response.status} ${response.statusText} -- ${body.slice(0, 800)}`);
+    throw new Error(
+      `xAI token exchange failed: ${response.status} ${response.statusText} -- ${body.slice(0, 800)}`,
+    );
   }
   return response.json() as Promise<Record<string, unknown>>;
 }
@@ -216,7 +223,10 @@ async function startCallbackServer(preferredPort: number): Promise<{
   };
 }
 
-async function waitForCallback(serverState: { result: CallbackResult }, timeoutMs: number): Promise<CallbackResult> {
+async function waitForCallback(
+  serverState: { result: CallbackResult },
+  timeoutMs: number,
+): Promise<CallbackResult> {
   const started = Date.now();
   while (Date.now() - started < timeoutMs) {
     if (serverState.result.code || serverState.result.error) return serverState.result;
@@ -235,7 +245,10 @@ async function waitForCallbackOrFallbackInput(input: {
   try {
     return await Promise.race([
       waitForCallback(input.server, input.timeoutMs),
-      waitForFallbackInput(rl, { redirectUri: input.redirectUri, expectedState: input.expectedState }),
+      waitForFallbackInput(rl, {
+        redirectUri: input.redirectUri,
+        expectedState: input.expectedState,
+      }),
     ]);
   } finally {
     rl.close();
@@ -247,7 +260,9 @@ async function waitForFallbackInput(
   input: { redirectUri: string; expectedState: string },
 ): Promise<CallbackResult> {
   while (true) {
-    const value = await rl.question(`Paste the full ${input.redirectUri} callback URL or xAI fallback code: `);
+    const value = await rl.question(
+      `Paste the full ${input.redirectUri} callback URL or xAI fallback code: `,
+    );
     const parsed = parseCallbackInput(value, input.expectedState);
     if (parsed) return parsed;
   }
@@ -270,7 +285,8 @@ function parseCallbackInput(value: string, expectedState: string): CallbackResul
 }
 
 function openBrowser(url: string): void {
-  const command = process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
+  const command =
+    process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
   const args = process.platform === "win32" ? ["/c", "start", "", url] : [url];
   execFile(command, args, (error) => {
     if (error) console.warn(`Could not open browser automatically: ${error.message}`);
@@ -289,6 +305,10 @@ function validateXaiEndpoint(value: string, field: string): string {
     throw new Error(`xAI ${field} is not on x.ai: ${value}`);
   }
   return value;
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }
 
 function writeJson0600(filePath: string, value: unknown): void {

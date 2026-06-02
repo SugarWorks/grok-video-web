@@ -71,7 +71,12 @@ export function createServer(config: AppConfig = loadConfig()) {
   });
 
   app.get("/api/files/:kind/:filename", requireAccess(config), (request, response) => {
-    const kind = request.params.kind === "videos" ? "videos" : request.params.kind === "images" ? "images" : undefined;
+    const kind =
+      request.params.kind === "videos"
+        ? "videos"
+        : request.params.kind === "images"
+          ? "images"
+          : undefined;
     if (!kind) return response.status(404).json({ error: "not_found" });
     const filePath = workspacePath(config, kind, String(request.params.filename));
     if (!fs.existsSync(filePath)) return response.status(404).json({ error: "not_found" });
@@ -99,7 +104,10 @@ function requireAccess(config: AppConfig) {
   return (request: Request, response: Response, next: NextFunction) => {
     if (!config.accessToken) return next();
     if (isLoopbackRequest(request)) return next();
-    const bearer = request.header("authorization")?.replace(/^Bearer\s+/i, "").trim();
+    const bearer = request
+      .header("authorization")
+      ?.replace(/^Bearer\s+/i, "")
+      .trim();
     const queryToken = typeof request.query.token === "string" ? request.query.token : undefined;
     if (bearer === config.accessToken || queryToken === config.accessToken) return next();
     return response.status(401).json({ error: "unauthorized" });
@@ -108,9 +116,9 @@ function requireAccess(config: AppConfig) {
 
 function isLoopbackRequest(request: Request): boolean {
   const remoteAddress = request.socket.remoteAddress ?? "";
-  return remoteAddress === "127.0.0.1"
-    || remoteAddress === "::1"
-    || remoteAddress === "::ffff:127.0.0.1";
+  return (
+    remoteAddress === "127.0.0.1" || remoteAddress === "::1" || remoteAddress === "::ffff:127.0.0.1"
+  );
 }
 
 function prepareWorkspace(config: AppConfig): void {
@@ -133,7 +141,13 @@ function sendWorkspaceFile(request: Request, response: Response, filePath: strin
     const match = range.match(/^bytes=(\d*)-(\d*)$/);
     const start = match?.[1] ? Number(match[1]) : 0;
     const end = match?.[2] ? Number(match[2]) : stat.size - 1;
-    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end >= stat.size || start > end) {
+    if (
+      !Number.isFinite(start) ||
+      !Number.isFinite(end) ||
+      start < 0 ||
+      end >= stat.size ||
+      start > end
+    ) {
       response.status(416).set("Content-Range", `bytes */${stat.size}`).end();
       return;
     }

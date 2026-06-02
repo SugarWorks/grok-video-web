@@ -2,7 +2,12 @@ import path from "node:path";
 import process from "node:process";
 import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
-import { ASPECT_RATIOS, RESOLUTIONS, type AspectRatioOption, type ResolutionOption } from "../shared/options.js";
+import {
+  ASPECT_RATIOS,
+  RESOLUTIONS,
+  type AspectRatioOption,
+  type ResolutionOption,
+} from "../shared/options.js";
 
 loadDotenv({ quiet: true });
 
@@ -81,7 +86,10 @@ export function expandUserPath(value: string): string {
 }
 
 function cleanSecret(value: string | undefined): string | undefined {
-  const trimmed = value?.trim().replace(/^[`'"“”‘’]+|[`'"“”‘’]+$/g, "").trim();
+  const trimmed = value
+    ?.trim()
+    .replace(/^[`'"“”‘’]+|[`'"“”‘’]+$/g, "")
+    .trim();
   return trimmed || undefined;
 }
 

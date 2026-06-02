@@ -24,6 +24,13 @@ try {
   await page.waitForSelector("text=动作预设", { timeout: 10_000 });
   await page.waitForSelector("text=原始 Prompt", { timeout: 10_000 });
   await page.waitForSelector("text=先添加图片", { timeout: 10_000 });
+  const historyButton = page.locator(".history-list button").first();
+  if (await historyButton.count()) {
+    await historyButton.click();
+    await page.waitForSelector("text=已把历史图片和参数载入输入区。", { timeout: 10_000 });
+    await page.waitForSelector('img[alt="source preview"]', { timeout: 10_000 });
+    await page.waitForSelector("text=生成视频", { timeout: 10_000 });
+  }
   await page.evaluate(() => {
     const pngBytes = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="), (char) => char.charCodeAt(0));
     const file = new File([pngBytes], "pasted-smoke.png", { type: "image/png" });

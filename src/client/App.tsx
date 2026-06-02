@@ -144,6 +144,25 @@ export default function App() {
     setToast({ tone: "ok", text: "Prompt 已复制。" });
   }
 
+  async function reuseHistoryJob(job: JobRecord) {
+    setSelectedJobId(job.id);
+    setToast(null);
+    try {
+      const response = await fetch(withToken(job.sourceImageUrl), { headers: authHeader });
+      if (!response.ok) throw new Error(await response.text());
+      const blob = await response.blob();
+      const file = new File([blob], `history-${job.id}${extensionForMime(blob.type)}`, {
+        type: blob.type || "image/png",
+      });
+      chooseFile(file);
+      setOptions(job.options);
+      setPrompt(job.options.prompt);
+      setToast({ tone: "ok", text: "已把历史图片和参数载入输入区。" });
+    } catch (error) {
+      setToast({ tone: "warn", text: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
   if (!config) {
     return (
       <main className="gate">
@@ -194,12 +213,13 @@ export default function App() {
                 type="button"
                 key={job.id}
                 className={job.id === selectedJob?.id ? "active" : ""}
-                onClick={() => setSelectedJobId(job.id)}
+                onClick={() => void reuseHistoryJob(job)}
               >
                 <img src={withToken(job.sourceImageUrl)} alt="" />
                 <span className={`history-status ${job.status}`}>{shortStatusLabel(job)}</span>
                 <strong>任务 #{jobs.length - index}</strong>
                 <small>{jobSummary(job)} · {formatDate(job.updatedAt)}</small>
+                <em>点击复用</em>
               </button>
             )) : (
               <div className="empty-history">
@@ -464,6 +484,13 @@ function formatProgressItem(item: string) {
   if (downloadMatch) return `第 ${downloadMatch[1]}/${downloadMatch[2]} 个视频：下载完成`;
   if (item === "done") return "任务完成";
   return item;
+}
+
+function extensionForMime(mimeType: string) {
+  if (mimeType === "image/jpeg") return ".jpg";
+  if (mimeType === "image/webp") return ".webp";
+  if (mimeType === "image/png") return ".png";
+  return ".png";
 }
 
 function clipboardImageFile(data: DataTransfer | null): File | null {

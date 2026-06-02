@@ -41,6 +41,26 @@ Then restart the service and open `http://<mac-lan-ip>:8787` or `http://<mac-loc
 
 The app binds to `127.0.0.1` by default. Use `HOST=0.0.0.0` only for LAN/tunnel exposure.
 
+## Test Grok Login Flow
+
+To test the xAI/Grok browser login without touching the token file used by the running service:
+
+```bash
+npm run login:grok -- --output ~/.grok-video-web/login-test/xai-oauth.json
+```
+
+The command opens the xAI authorization page, waits for the local callback, saves the token state to the test path, and verifies it with the API. If xAI shows a fallback code instead of redirecting, paste that code into the terminal prompt.
+
+Useful variants:
+
+```bash
+npm run login:grok -- --output ~/.grok-video-web/login-test/xai-oauth.json --check
+npm run login:grok -- --output ~/.grok-video-web/login-test/xai-oauth.json --force
+npm run login:grok -- --print-url-only
+```
+
+`--print-url-only` is only for smoke-checking that the OAuth authorization URL can be built; it exits immediately, so do not use that URL to complete a real login. The command refuses to overwrite an existing token file unless `--force` is passed.
+
 ## Quality Loop
 
 ```bash

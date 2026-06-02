@@ -31,6 +31,7 @@ type LoginOptions = {
   port?: number;
   timeoutSeconds?: number;
   noBrowser?: boolean;
+  printUrlOnly?: boolean;
 };
 
 export async function runXaiOauthLogin(options: LoginOptions): Promise<void> {
@@ -52,6 +53,7 @@ export async function runXaiOauthLogin(options: LoginOptions): Promise<void> {
     console.log("Open this URL to authorize Grok Video Studio with xAI:");
     console.log(authorizeUrl);
     console.log();
+    if (options.printUrlOnly) return;
     console.log(`Waiting for callback on ${redirectUri}`);
     console.log("If xAI shows a fallback code, paste that code here and press Return.");
     if (!options.noBrowser) openBrowser(authorizeUrl);
@@ -296,4 +298,3 @@ function writeJson0600(filePath: string, value: unknown): void {
   fs.renameSync(tempPath, filePath);
   fs.chmodSync(filePath, 0o600);
 }
-

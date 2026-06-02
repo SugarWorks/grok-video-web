@@ -10,6 +10,7 @@
     "build:client": "vite build",
     "build:server": "tsc -p tsconfig.server.json",
     "check": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.server.json",
+    "login:grok": "node --no-warnings=ExperimentalWarning --import tsx src/server/login.ts",
     "launch": "npm run build && node dist/server/server/launch.js",
     "smoke": "node scripts/smoke.mjs",
     "test": "vitest run",

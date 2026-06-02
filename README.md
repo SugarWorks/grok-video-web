@@ -42,13 +42,13 @@ Then restart the service and open `http://<mac-lan-ip>:8787` or `http://<mac-loc
 
 The app binds to `127.0.0.1` by default. Use `HOST=0.0.0.0` only for LAN/tunnel exposure.
 
-## Sugarworks / Suga Deployment
+## Container Deployment
 
-This repo is ready for a Suga **Container** service. The checked-in `Dockerfile` builds the Vite+ client, compiles the Node server, exposes port `8080`, and stores generated images/videos/job metadata under `/data`.
+This repo is ready for a Docker-based Node container deployment. The checked-in `Dockerfile` builds the Vite+ client, compiles the Node server, exposes port `8080`, and stores generated images/videos/job metadata under `/data`.
 
-Suggested Suga service config:
+Suggested container service config:
 
-- Source: GitHub repo `pengx17/grok-video-web`
+- Source: GitHub repo `SugarWorks/grok-video-web`
 - Service type: Container
 - Private port: `8080`
 - Public endpoint: HTTPS Domain -> private port `8080`
@@ -72,7 +72,7 @@ DEFAULT_DURATION_SECONDS=6
 MAX_VARIATIONS=3
 ```
 
-Mark `XAI_OAUTH_TOKEN_STATE_B64` as Sensitive in Suga. If using a direct API key instead of subscription OAuth, set `XAI_AUTH_MODE=api_key` and mark `XAI_API_KEY` as Sensitive.
+Mark `XAI_OAUTH_TOKEN_STATE_B64` as a sensitive/secret environment variable. If using a direct API key instead of subscription OAuth, set `XAI_AUTH_MODE=api_key` and mark `XAI_API_KEY` as sensitive.
 
 To copy the current local Linger Grok OAuth token-state into the clipboard without printing it:
 
@@ -80,7 +80,7 @@ To copy the current local Linger Grok OAuth token-state into the clipboard witho
 base64 -i ~/.linger/xai-oauth.json | tr -d '\n' | pbcopy
 ```
 
-Paste the clipboard value into Suga's sensitive `XAI_OAUTH_TOKEN_STATE_B64` variable.
+Paste the clipboard value into the service's sensitive `XAI_OAUTH_TOKEN_STATE_B64` variable.
 
 ## Test Grok Login Flow
 

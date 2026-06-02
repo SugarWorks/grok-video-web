@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import {
   Copy,
   Download,
@@ -231,22 +232,27 @@ export default function App() {
           </div>
           <div className="history-list">
             {jobs.length > 0 ? (
-              jobs.map((job, index) => (
-                <button
-                  type="button"
-                  key={job.id}
-                  className={job.id === selectedJob?.id ? "active" : ""}
-                  onClick={() => void reuseHistoryJob(job)}
-                >
-                  <img src={withToken(job.sourceImageUrl)} alt="" />
-                  <span className={`history-status ${job.status}`}>{shortStatusLabel(job)}</span>
-                  <strong>任务 #{jobs.length - index}</strong>
-                  <small>
-                    {jobSummary(job)} · {formatDate(job.updatedAt)}
-                  </small>
-                  <em>点击复用</em>
-                </button>
-              ))
+              jobs.map((job, index) => {
+                const isCurrent = job.id === selectedJob?.id;
+                return (
+                  <button
+                    type="button"
+                    key={job.id}
+                    className={isCurrent ? "active" : ""}
+                    aria-pressed={isCurrent}
+                    onClick={() => void reuseHistoryJob(job)}
+                  >
+                    <img src={withToken(job.sourceImageUrl)} alt="" />
+                    <span className={`history-status ${job.status}`}>{shortStatusLabel(job)}</span>
+                    {isCurrent && <span className="history-current">当前</span>}
+                    <strong>任务 #{jobs.length - index}</strong>
+                    <small>
+                      {jobSummary(job)} · {formatDate(job.updatedAt)}
+                    </small>
+                    <em>{isCurrent ? "当前预览" : "点击复用"}</em>
+                  </button>
+                );
+              })
             ) : (
               <div className="empty-history">
                 <Film size={24} />
@@ -326,10 +332,11 @@ export default function App() {
             <ControlSection title="动作预设">
               <div className="preset-grid">
                 {VIDEO_MOTION_PRESETS.map((preset) => (
-                  <button
+                  <PresetButton
                     key={preset.id}
-                    className={`preset ${options.presetId === preset.id ? "selected" : ""}`}
-                    type="button"
+                    selected={options.presetId === preset.id}
+                    label={preset.label}
+                    description={preset.description}
                     onClick={() =>
                       patchOptions({
                         presetId: options.presetId === preset.id ? undefined : preset.id,
@@ -337,10 +344,7 @@ export default function App() {
                         durationSeconds: preset.durationSeconds ?? options.durationSeconds,
                       })
                     }
-                  >
-                    <b>{preset.label}</b>
-                    <span>{preset.description}</span>
-                  </button>
+                  />
                 ))}
               </div>
             </ControlSection>
@@ -412,10 +416,12 @@ export default function App() {
               className="generate"
               type="button"
               disabled={submitting || !imageFile}
+              aria-disabled={submitting || !imageFile}
               onClick={() => void submit()}
             >
               {submitting ? <Loader2 className="spin" size={19} /> : <Play size={19} />}
-              {submitting ? "生成中" : imageFile ? "生成视频" : "先添加图片"}
+              <span>{submitting ? "生成中" : imageFile ? "生成视频" : "先添加图片"}</span>
+              {!submitting && !imageFile && <small>LOCKED</small>}
             </button>
             {!imageFile && <p className="generate-note">先添加一张源图，按钮会自动解锁。</p>}
             {toast && <div className={`toast ${toast.tone}`}>{toast.text}</div>}
@@ -512,9 +518,36 @@ function Toggle(props: { label: string; active: boolean; onClick: () => void }) 
     <button
       type="button"
       className={`toggle ${props.active ? "active" : ""}`}
+      aria-pressed={props.active}
       onClick={props.onClick}
     >
-      {props.label}
+      <span className="toggle-indicator">{props.active ? <Check size={13} /> : "OFF"}</span>
+      <span className="toggle-copy">
+        <b>{props.label}</b>
+        <em>{props.active ? "已启用" : "未启用"}</em>
+      </span>
+    </button>
+  );
+}
+
+function PresetButton(props: {
+  selected: boolean;
+  label: string;
+  description: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className={`preset ${props.selected ? "selected" : ""}`}
+      type="button"
+      aria-pressed={props.selected}
+      onClick={props.onClick}
+    >
+      <span className="preset-top">
+        <b>{props.label}</b>
+        <em>{props.selected ? "当前" : "未选"}</em>
+      </span>
+      <span>{props.description}</span>
     </button>
   );
 }
@@ -563,9 +596,11 @@ function Segment<T extends string | number>(props: {
             type="button"
             key={String(value)}
             className={value === props.value ? "selected" : ""}
+            aria-pressed={value === props.value}
             onClick={() => props.onChange(value)}
           >
-            {props.format ? props.format(value) : String(value)}
+            <span>{props.format ? props.format(value) : String(value)}</span>
+            {value === props.value && <em>当前</em>}
           </button>
         ))}
       </div>

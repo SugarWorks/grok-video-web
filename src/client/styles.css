@@ -144,7 +144,9 @@ h1 {
 
 .history-list button.active {
   border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
+  background: #191d1b;
+  color: #f5f0d5;
+  box-shadow: inset 0 0 0 2px var(--accent);
 }
 
 .history-list img {
@@ -164,6 +166,27 @@ h1 {
   color: var(--muted);
   font-size: 10px;
   line-height: 1.25;
+}
+
+.history-list button.active small,
+.history-list button.active em {
+  color: #d6cfad;
+}
+
+.history-current {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  background: var(--accent);
+  color: var(--ink);
+  border: 1px solid rgba(24, 26, 24, 0.72);
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 950;
 }
 
 .history-status {
@@ -364,12 +387,63 @@ h1 {
   color: var(--ink);
   border-radius: 3px;
   cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
 }
 
 .toggle {
-  height: 36px;
-  font-size: 13px;
+  min-height: 44px;
+  padding: 6px 7px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
   font-weight: 800;
+  text-align: left;
+}
+
+.toggle-indicator {
+  min-width: 30px;
+  height: 24px;
+  display: inline-grid;
+  place-items: center;
+  border: 2px solid var(--charcoal);
+  background: #d9d8ce;
+  color: #51564e;
+  font-family: "Menlo", "SF Mono", monospace;
+  font-size: 9px;
+  font-weight: 950;
+}
+
+.toggle-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.toggle-copy b {
+  font-size: 13px;
+  line-height: 1.05;
+}
+
+.toggle-copy em {
+  color: var(--muted);
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.toggle:hover,
+.preset:hover,
+.segment button:hover,
+.ghost:hover,
+.prompt-preview-head button:hover {
+  transform: translateY(-1px);
 }
 
 .toggle.active,
@@ -377,6 +451,18 @@ h1 {
   background: var(--charcoal);
   color: var(--warning);
   border-color: var(--charcoal);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.toggle.active .toggle-indicator,
+.segment .selected em {
+  background: var(--warning);
+  color: var(--ink);
+  border-color: var(--warning);
+}
+
+.toggle.active .toggle-copy em {
+  color: #f2d787;
 }
 
 .ghost {
@@ -406,6 +492,7 @@ h1 {
 }
 
 .preset {
+  position: relative;
   min-height: 76px;
   padding: 10px;
   text-align: left;
@@ -414,18 +501,52 @@ h1 {
   gap: 4px;
 }
 
-.preset b {
+.preset-top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.preset-top b {
   font-size: 14px;
 }
+
+.preset-top em {
+  min-height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid rgba(24, 26, 24, 0.35);
+  background: #dedcd0;
+  color: #555950;
+  border-radius: 2px;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 950;
+  white-space: nowrap;
+}
+
 .preset span {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.35;
 }
 .preset.selected {
-  border-color: var(--accent);
-  box-shadow: inset 0 0 0 1px var(--accent);
-  background: #f7dfc8;
+  border-color: var(--charcoal);
+  background: var(--charcoal);
+  color: #f5f0d5;
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.preset.selected span {
+  color: #d6cfad;
+}
+
+.preset.selected .preset-top em {
+  border-color: var(--warning);
+  background: var(--warning);
+  color: var(--ink);
 }
 
 .segment-row {
@@ -449,10 +570,26 @@ h1 {
 }
 
 .segment button {
-  min-height: 30px;
-  padding: 0 9px;
+  min-height: 32px;
+  padding: 4px 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
   font-weight: 800;
+}
+
+.segment button em {
+  min-height: 18px;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 2px;
+  background: var(--warning);
+  color: var(--ink);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 950;
 }
 
 .generate {
@@ -473,11 +610,23 @@ h1 {
 }
 
 .generate:disabled {
-  background: #d7d4c6;
+  background:
+    repeating-linear-gradient(135deg, rgba(24, 26, 24, 0.14) 0 8px, transparent 8px 16px), #d7d4c6;
   border-color: #777b70;
   color: #5d6259;
   box-shadow: 0 5px 0 #a9aa9f;
   cursor: not-allowed;
+}
+
+.generate small {
+  min-height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-size: 10px;
+  font-weight: 950;
 }
 .spin {
   animation: spin 1s linear infinite;

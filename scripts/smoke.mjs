@@ -23,7 +23,7 @@ try {
   await page.waitForSelector("text=Grok Video Studio", { timeout: 10_000 });
   await page.waitForSelector("text=动作预设", { timeout: 10_000 });
   await page.waitForSelector("text=原始 Prompt", { timeout: 10_000 });
-  await page.waitForSelector("text=开始生成", { timeout: 10_000 });
+  await page.waitForSelector("text=先添加图片", { timeout: 10_000 });
   await page.evaluate(() => {
     const pngBytes = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="), (char) => char.charCodeAt(0));
     const file = new File([pngBytes], "pasted-smoke.png", { type: "image/png" });
@@ -33,6 +33,7 @@ try {
   });
   await page.waitForSelector('img[alt="source preview"]', { timeout: 10_000 });
   await page.waitForSelector("text=已从剪贴板粘贴图片。", { timeout: 10_000 });
+  await page.waitForSelector("text=生成视频", { timeout: 10_000 });
   await page.screenshot({ path: "/tmp/grok-video-web-smoke.png", fullPage: true });
   if (consoleErrors.length > 0) {
     throw new Error(`browser console errors: ${consoleErrors.join(" | ")}`);

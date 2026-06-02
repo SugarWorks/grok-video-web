@@ -1,4 +1,4 @@
-import { Copy, Download, Film, ImagePlus, KeyRound, Loader2, Play, RefreshCw, ShieldCheck, Sparkles } from "lucide-react";
+import { Copy, Download, Film, ImagePlus, KeyRound, Loader2, Play, RefreshCw, ShieldCheck } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { JobRecord, PublicConfig } from "../shared/api";
 import {
@@ -184,6 +184,7 @@ export default function App() {
 
       <section className="workspace">
         <div className="source-pane">
+          <PaneTitle step="1" title="输入图片" description="拖拽、点击选择，或直接粘贴截图。" />
           <div
             className={`dropzone ${imagePreview ? "has-image" : ""}`}
             onDrop={(event) => {
@@ -206,10 +207,13 @@ export default function App() {
               </div>
             )}
           </div>
-          <p className="input-hint">支持截图后直接粘贴，或从 Finder / 浏览器复制图片再粘贴。</p>
+          <p className="input-hint">截图后可直接 Cmd+V；也支持 Finder / 浏览器复制图片后粘贴。</p>
 
           <label className="prompt-box">
-            <span>Prompt</span>
+            <span>
+              画面动作
+              <small>只写你希望发生的变化，保图约束会自动补全。</small>
+            </span>
             <textarea
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
@@ -217,16 +221,16 @@ export default function App() {
             />
           </label>
 
+          <div className="mini-title">保真开关</div>
           <div className="toggles">
             <Toggle label="保图" active={options.preserveSource} onClick={() => patchOptions({ preserveSource: !options.preserveSource })} />
             <Toggle label="不改字" active={options.avoidTextMutation} onClick={() => patchOptions({ avoidTextMutation: !options.avoidTextMutation })} />
             <Toggle label="可循环" active={options.loopFriendly} onClick={() => patchOptions({ loopFriendly: !options.loopFriendly })} />
           </div>
-
-          <PromptPanel title="原始 Prompt" value={submittedPrompt} onCopy={() => void copyPrompt(submittedPrompt)} />
         </div>
 
         <div className="controls-pane">
+          <PaneTitle step="2" title="调参数" description="先选动作预设，再微调时长、镜头和声音。" />
           <ControlSection title="动作预设">
             <div className="preset-grid">
               {VIDEO_MOTION_PRESETS.map((preset) => (
@@ -257,22 +261,34 @@ export default function App() {
             <Segment label="声音" values={[...SOUND_MODES]} value={options.sound} onChange={(value) => patchOptions({ sound: value })} />
           </ControlSection>
 
-          <button className="generate" type="button" disabled={submitting} onClick={() => void submit()}>
+          <PromptDisclosure
+            title="原始 Prompt"
+            description="Grok 实际收到的完整文本，可展开核对。"
+            value={submittedPrompt}
+            onCopy={() => void copyPrompt(submittedPrompt)}
+          />
+
+          <button className="generate" type="button" disabled={submitting || !imageFile} onClick={() => void submit()}>
             {submitting ? <Loader2 className="spin" size={19} /> : <Play size={19} />}
-            开始生成
+            {submitting ? "生成中" : imageFile ? "生成视频" : "先添加图片"}
           </button>
+          {!imageFile && <p className="generate-note">先添加一张源图，按钮会自动解锁。</p>}
           {toast && <div className={`toast ${toast.tone}`}>{toast.text}</div>}
         </div>
 
         <div className="result-pane">
-          <div className="result-head">
-            <div>
-              <div className="eyebrow"><Sparkles size={15} /> recent jobs</div>
-              <h2>{selectedJob ? statusLabel(selectedJob) : "暂无任务"}</h2>
-            </div>
-          </div>
+          <PaneTitle
+            step="3"
+            title="结果"
+            description={selectedJob ? jobSummary(selectedJob) : "生成后自动出现在这里。"}
+          />
           {selectedJob ? (
             <>
+              <div className="job-status-bar">
+                <span className={`job-pill ${selectedJob.status}`}>{statusLabel(selectedJob)}</span>
+                <span>{selectedJob.results.length}/{selectedJob.options.count} 个结果</span>
+                <span>{formatDate(selectedJob.updatedAt)}</span>
+              </div>
               <div className="video-stack">
                 {selectedJob.results.length > 0 ? selectedJob.results.map((result) => (
                   <article className="video-card" key={result.requestId}>
@@ -285,14 +301,24 @@ export default function App() {
                 )) : (
                   <div className="pending">
                     <Film size={34} />
-                    <p>{selectedJob.progress.at(-1) ?? selectedJob.status}</p>
+                    <p>{formatProgressItem(selectedJob.progress.at(-1) ?? selectedJob.status)}</p>
                   </div>
                 )}
               </div>
-              <ol className="progress-list">
-                {selectedJob.progress.slice(-8).map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
-              </ol>
-              {selectedJobPrompt && <PromptPanel title="任务 Prompt" value={selectedJobPrompt} onCopy={() => void copyPrompt(selectedJobPrompt)} />}
+              <details className="progress-log">
+                <summary>任务日志</summary>
+                <ol>
+                  {selectedJob.progress.slice(-8).map((item, index) => <li key={`${item}-${index}`}>{formatProgressItem(item)}</li>)}
+                </ol>
+              </details>
+              {selectedJobPrompt && (
+                <PromptDisclosure
+                  title="任务 Prompt"
+                  description="这次任务提交时的原始 prompt。"
+                  value={selectedJobPrompt}
+                  onCopy={() => void copyPrompt(selectedJobPrompt)}
+                />
+              )}
             </>
           ) : <div className="pending"><Film size={34} /><p>生成后会出现在这里</p></div>}
         </div>
@@ -315,6 +341,18 @@ export default function App() {
   );
 }
 
+function PaneTitle(props: { step: string; title: string; description: string }) {
+  return (
+    <header className="pane-title">
+      <span>{props.step}</span>
+      <div>
+        <h2>{props.title}</h2>
+        <p>{props.description}</p>
+      </div>
+    </header>
+  );
+}
+
 function ControlSection(props: { title: string; children: React.ReactNode }) {
   return <section className="control-section"><h3>{props.title}</h3>{props.children}</section>;
 }
@@ -323,18 +361,26 @@ function Toggle(props: { label: string; active: boolean; onClick: () => void }) 
   return <button type="button" className={`toggle ${props.active ? "active" : ""}`} onClick={props.onClick}>{props.label}</button>;
 }
 
-function PromptPanel(props: { title: string; value: string; onCopy: () => void }) {
+function PromptDisclosure(props: { title: string; description: string; value: string; onCopy: () => void }) {
   return (
-    <section className="prompt-preview">
-      <div className="prompt-preview-head">
-        <span>{props.title}</span>
-        <button type="button" onClick={props.onCopy} title="复制 prompt">
-          <Copy size={15} />
-          复制
-        </button>
+    <details className="prompt-disclosure">
+      <summary>
+        <span>
+          <b>{props.title}</b>
+          <em>{props.description}</em>
+        </span>
+      </summary>
+      <div className="prompt-preview">
+        <div className="prompt-preview-head">
+          <span>raw prompt</span>
+          <button type="button" onClick={props.onCopy} title="复制 prompt">
+            <Copy size={15} />
+            复制
+          </button>
+        </div>
+        <pre>{props.value || "Prompt 为空时只使用参数生成的保图/镜头/声音约束。"}</pre>
       </div>
-      <pre>{props.value || "Prompt 为空时只使用参数生成的保图/镜头/声音约束。"}</pre>
-    </section>
+    </details>
   );
 }
 
@@ -369,6 +415,33 @@ function statusLabel(job: JobRecord) {
   if (job.status === "failed") return `失败：${job.error ?? ""}`;
   if (job.status === "running") return "生成中";
   return "排队中";
+}
+
+function jobSummary(job: JobRecord) {
+  return `${job.options.durationSeconds}s · ${job.options.resolution} · ${job.options.aspectRatio} · ${job.options.count} 个`;
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(new Date(value));
+}
+
+function formatProgressItem(item: string) {
+  const statusMatch = item.match(/^(\d+)\/(\d+):status:(.+)$/);
+  if (statusMatch) {
+    const [, current, total, status] = statusMatch;
+    const labels: Record<string, string> = {
+      pending: "排队中",
+      running: "生成中",
+      processing: "处理中",
+      done: "完成",
+      failed: "失败",
+    };
+    return `第 ${current}/${total} 个视频：${labels[status] ?? status}`;
+  }
+  const downloadMatch = item.match(/^(\d+)\/(\d+):download$/);
+  if (downloadMatch) return `第 ${downloadMatch[1]}/${downloadMatch[2]} 个视频：下载完成`;
+  if (item === "done") return "任务完成";
+  return item;
 }
 
 function clipboardImageFile(data: DataTransfer | null): File | null {

@@ -1,23 +1,25 @@
 import { execFile } from "node:child_process";
 import fs from "node:fs";
+import * as clack from "@clack/prompts";
 import { loadConfig, type AppConfig } from "./config.js";
 import { runXaiOauthLogin } from "./oauth-login.js";
 import { createServer } from "./server.js";
 import { resolveXaiAuth } from "./xai-auth.js";
 
 export async function startServer(options: { open?: boolean } = {}): Promise<void> {
+  clack.intro("Grok Studio");
   const config = loadConfig();
   await ensureAuthReady(config);
 
   const { app } = createServer(config);
   app.listen(config.port, config.host, () => {
-    const url = `http://${config.host}:${config.port}`;
-    console.log(`Grok Studio is running: ${url}`);
-    if (config.accessToken) {
-      console.log("ACCESS_TOKEN is configured; enter the value from .env in the browser gate.");
-    } else {
-      console.log("ACCESS_TOKEN is not set; API access is open to whoever can reach this host.");
-    }
+    const host = config.host === "0.0.0.0" || config.host === "::" ? "127.0.0.1" : config.host;
+    const url = `http://${host}:${config.port}`;
+    const access = config.accessToken
+      ? "Access: token required (set in .env)"
+      : "Access: open — no ACCESS_TOKEN set";
+    clack.note(`${url}\n${access}`, "Running");
+    clack.outro("Press Ctrl+C to stop.");
     if (options.open) openBrowser(url);
   });
 }
@@ -29,16 +31,15 @@ async function ensureAuthReady(config: AppConfig): Promise<void> {
   }
   try {
     await resolveXaiAuth(config);
-    console.log(`xAI OAuth ready: ${config.xai.oauthTokenFile}`);
+    clack.log.success(`xAI OAuth ready (${config.xai.oauthTokenFile})`);
     return;
   } catch (error) {
     if (fs.existsSync(config.xai.oauthTokenFile)) {
-      console.warn(
-        `xAI OAuth token check failed: ${error instanceof Error ? error.message : String(error)}`,
+      clack.log.warn(
+        `xAI token check failed: ${error instanceof Error ? error.message : String(error)} — re-running login.`,
       );
-      console.warn("Starting OAuth login to repair the token state.");
     } else {
-      console.log(`No xAI OAuth token found at ${config.xai.oauthTokenFile}. Starting login.`);
+      clack.log.info("No xAI token found — starting login.");
     }
   }
   await runXaiOauthLogin({ outputPath: config.xai.oauthTokenFile });

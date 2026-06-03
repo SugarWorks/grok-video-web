@@ -21,6 +21,7 @@ const envSchema = z.object({
   XAI_OAUTH_TOKEN_FILE: z.string().optional().default("~/.grok-video-web/xai-oauth.json"),
   XAI_BASE_URL: z.string().url().optional().default("https://api.x.ai/v1"),
   XAI_VIDEO_MODEL: z.string().trim().min(1).optional().default("grok-imagine-video"),
+  XAI_IMAGE_MODEL: z.string().trim().min(1).optional().default("grok-imagine-image-quality"),
   WORKSPACE_DIR: z.string().trim().min(1).optional().default("./workspace"),
   DEFAULT_DURATION_SECONDS: z.coerce.number().int().min(1).max(15).optional().default(6),
   DEFAULT_RESOLUTION: z.enum(RESOLUTIONS).optional().default("720p"),
@@ -41,6 +42,7 @@ export type AppConfig = {
     oauthTokenFile: string;
     baseUrl: string;
     model: string;
+    imageModel: string;
   };
   workspaceDir: string;
   defaults: {
@@ -66,6 +68,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
       oauthTokenFile: expandUserPath(parsed.XAI_OAUTH_TOKEN_FILE),
       baseUrl: parsed.XAI_BASE_URL.replace(/\/+$/, ""),
       model: parsed.XAI_VIDEO_MODEL,
+      imageModel: parsed.XAI_IMAGE_MODEL,
     },
     workspaceDir: path.resolve(expandUserPath(parsed.WORKSPACE_DIR)),
     defaults: {

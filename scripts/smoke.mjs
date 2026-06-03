@@ -20,17 +20,53 @@ try {
   });
   await page.goto(url.toString());
   await page.waitForLoadState("networkidle");
-  await page.waitForSelector("text=Grok Video Studio", { timeout: 10_000 });
-  await page.waitForSelector("text=动作预设", { timeout: 10_000 });
-  await page.waitForSelector("text=原始 Prompt", { timeout: 10_000 });
-  await page.waitForSelector("text=先添加图片", { timeout: 10_000 });
-  const historyButton = page.locator(".history-list button").first();
-  if (await historyButton.count()) {
-    await historyButton.click();
-    await page.waitForSelector("text=已把历史图片和参数载入输入区。", { timeout: 10_000 });
-    await page.waitForSelector('img[alt="source preview"]', { timeout: 10_000 });
-    await page.waitForSelector("text=生成视频", { timeout: 10_000 });
+  await page.waitForSelector("text=Grok Studio", { timeout: 10_000 });
+  await page.waitForSelector("text=Run Graph", { timeout: 10_000 });
+  await page.waitForSelector(".result-node.source", { timeout: 10_000 });
+  await page.waitForSelector("text=Drop / Paste / Select", { timeout: 10_000 });
+
+  const jobs = await page.evaluate(async () => {
+    const response = await fetch("/api/jobs");
+    if (!response.ok) return [];
+    return (await response.json()).jobs;
+  });
+  const legacyJobs = jobs.filter((job) => !job.inputFrame);
+  if (legacyJobs[0]) {
+    const card = page.locator(`.output-card[data-key="video:${legacyJobs[0].id}"]`);
+    if ((await card.count()) > 0) {
+      await card.first().click();
+      // The legacy run surfaces as its own video node...
+      await page.waitForSelector(".result-node.video", { timeout: 10_000 });
+      // ...but a lineage-less run must not resurrect unrelated prep frame nodes.
+      await page.waitForTimeout(500);
+      const prepNodes = await page.locator(".result-node.prep").count();
+      if (prepNodes !== 0) {
+        throw new Error("legacy history run restored unrelated prep candidates");
+      }
+    }
   }
+
+  // Switching to a different source's output must NOT string the previous
+  // lineage into the new graph (lineage is data-derived, not a UI cache).
+  if (legacyJobs[1]) {
+    const firstId = legacyJobs[0].id;
+    const secondCard = page.locator(`.output-card[data-key="video:${legacyJobs[1].id}"]`);
+    if ((await secondCard.count()) > 0) {
+      await secondCard.first().click();
+      await page.waitForFunction(
+        (staleId) => {
+          const nodes = [...document.querySelectorAll(".result-node.video")];
+          return (
+            nodes.length > 0 &&
+            !nodes.some((node) => node.textContent?.includes(staleId.slice(0, 6)))
+          );
+        },
+        firstId,
+        { timeout: 10_000 },
+      );
+    }
+  }
+
   await page.evaluate(() => {
     const pngBytes = Uint8Array.from(
       atob(
@@ -45,9 +81,24 @@ try {
       new ClipboardEvent("paste", { clipboardData: transfer, bubbles: true, cancelable: true }),
     );
   });
-  await page.waitForSelector('img[alt="source preview"]', { timeout: 10_000 });
-  await page.waitForSelector("text=已从剪贴板粘贴图片。", { timeout: 10_000 });
-  await page.waitForSelector("text=生成视频", { timeout: 10_000 });
+  await page.waitForSelector("text=Image pasted.", { timeout: 10_000 });
+  await page.getByRole("button", { name: /Animate source/ }).click();
+  await page.waitForSelector("text=Motion presets", { timeout: 10_000 });
+  await page.waitForSelector("text=Raw prompt", { timeout: 10_000 });
+  await page.waitForSelector("text=Run video", { timeout: 10_000 });
+  await page.locator(".preview-image").first().click();
+  await page.waitForSelector(".yarl__container", { timeout: 10_000 });
+  await page.keyboard.press("Escape");
+  await page.waitForSelector(".yarl__container", { state: "detached", timeout: 10_000 });
+  const videoCardScrollTop = await page.evaluate(() => {
+    const card = document.querySelector(".video-card");
+    if (!card) return 0;
+    card.scrollTop = 120;
+    return card.scrollTop;
+  });
+  if (videoCardScrollTop !== 0) {
+    throw new Error("video card has internal scroll");
+  }
   await page.screenshot({ path: "/tmp/grok-video-web-smoke.png", fullPage: true });
   if (consoleErrors.length > 0) {
     throw new Error(`browser console errors: ${consoleErrors.join(" | ")}`);

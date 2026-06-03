@@ -3,10 +3,23 @@ import fs from "node:fs";
 import path from "node:path";
 import express, { type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
-import type { CreateJobResponse, PublicConfig } from "../shared/api.js";
-import { defaultGenerationOptions, normalizeGenerationOptions } from "../shared/options.js";
+import type {
+  CreateJobResponse,
+  JobInputFrame,
+  PreparedImagesResponse,
+  PrepareImageResponse,
+  PublicConfig,
+} from "../shared/api.js";
+import {
+  defaultGenerationOptions,
+  normalizeFramePrepOptions,
+  normalizeGenerationOptions,
+} from "../shared/options.js";
 import { loadConfig, type AppConfig } from "./config.js";
 import { fileUrl, JobStore, workspacePath } from "./jobs.js";
+import { PreparedImageStore } from "./prepared-images.js";
+import { sendWorkspaceFile } from "./static-files.js";
+import { generateGrokImageEdit } from "./xai-image.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -17,6 +30,7 @@ export function createServer(config: AppConfig = loadConfig()) {
   prepareWorkspace(config);
   const app = express();
   const jobs = new JobStore(config);
+  const preparedImages = new PreparedImageStore(config);
   const clientDir = path.resolve("dist/client");
 
   app.use(express.json({ limit: "1mb" }));
@@ -27,7 +41,7 @@ export function createServer(config: AppConfig = loadConfig()) {
 
   app.get("/api/config", requireAccess(config), (request, response) => {
     const payload: PublicConfig = {
-      appName: "Grok Video Studio",
+      appName: "Grok Studio",
       authRequired: Boolean(config.accessToken) && !isLoopbackRequest(request),
       defaults: {
         durationSeconds: config.defaults.durationSeconds,
@@ -49,6 +63,11 @@ export function createServer(config: AppConfig = loadConfig()) {
     return response.json({ job });
   });
 
+  app.get("/api/prepared-images", requireAccess(config), (_request, response) => {
+    const payload: PreparedImagesResponse = { images: preparedImages.list() };
+    response.json(payload);
+  });
+
   app.post("/api/jobs", requireAccess(config), upload.single("image"), (request, response) => {
     const image = request.file;
     if (!image) return response.status(400).json({ error: "image_required" });
@@ -65,10 +84,53 @@ export function createServer(config: AppConfig = loadConfig()) {
       imagePath,
       imageUrl: fileUrl(config.workspaceDir, "images", filename),
       options,
+      inputFrame: parseJobInputFrame(request.body.inputFrame),
     });
     const payload: CreateJobResponse = { job };
     return response.status(202).json(payload);
   });
+
+  app.post(
+    "/api/prepared-images",
+    requireAccess(config),
+    upload.single("image"),
+    async (request, response) => {
+      const image = request.file;
+      if (!image) return response.status(400).json({ error: "image_required" });
+      if (!/^image\/(png|jpeg|webp)$/.test(image.mimetype)) {
+        return response.status(400).json({ error: "unsupported_image_type" });
+      }
+      const rawOptions = JSON.parse(String(request.body.options ?? "{}")) as unknown;
+      const options = normalizeFramePrepOptions(rawOptions);
+      const id = `prep_${crypto.randomBytes(8).toString("hex")}`;
+      const clientSourceId = cleanOptionalString(request.body.sourceId);
+      const sourceFilename = `${new Date().toISOString().replace(/[:.]/g, "-")}-${id}-source${extensionForMime(image.mimetype)}`;
+      const sourceImagePath = workspacePath(config, "images", sourceFilename);
+      fs.writeFileSync(sourceImagePath, image.buffer);
+      const result = await generateGrokImageEdit({
+        config,
+        imagePath: sourceImagePath,
+        options,
+        id,
+      });
+      const record = {
+        id,
+        createdAt: new Date().toISOString(),
+        sourceImagePath,
+        sourceImageUrl: fileUrl(config.workspaceDir, "images", sourceFilename),
+        preparedImagePath: result.localPath,
+        preparedImageUrl: fileUrl(config.workspaceDir, "images", path.basename(result.localPath)),
+        prompt: result.prompt,
+        options,
+        clientSourceId,
+      };
+      preparedImages.add(record);
+      const payload: PrepareImageResponse = {
+        image: record,
+      };
+      return response.status(201).json(payload);
+    },
+  );
 
   app.get("/api/files/:kind/:filename", requireAccess(config), (request, response) => {
     const kind =
@@ -125,6 +187,7 @@ function prepareWorkspace(config: AppConfig): void {
   fs.mkdirSync(path.join(config.workspaceDir, "images"), { recursive: true });
   fs.mkdirSync(path.join(config.workspaceDir, "videos"), { recursive: true });
   fs.mkdirSync(path.join(config.workspaceDir, "jobs"), { recursive: true });
+  fs.mkdirSync(path.join(config.workspaceDir, "prepared-images"), { recursive: true });
 }
 
 function extensionForMime(mime: string): string {
@@ -133,53 +196,32 @@ function extensionForMime(mime: string): string {
   return ".png";
 }
 
-function sendWorkspaceFile(request: Request, response: Response, filePath: string): void {
-  const stat = fs.statSync(filePath);
-  const contentType = contentTypeFor(filePath);
-  const range = request.headers.range;
-  if (range) {
-    const match = range.match(/^bytes=(\d*)-(\d*)$/);
-    const start = match?.[1] ? Number(match[1]) : 0;
-    const end = match?.[2] ? Number(match[2]) : stat.size - 1;
-    if (
-      !Number.isFinite(start) ||
-      !Number.isFinite(end) ||
-      start < 0 ||
-      end >= stat.size ||
-      start > end
-    ) {
-      response.status(416).set("Content-Range", `bytes */${stat.size}`).end();
-      return;
-    }
-    response.writeHead(206, {
-      "Accept-Ranges": "bytes",
-      "Content-Length": String(end - start + 1),
-      "Content-Range": `bytes ${start}-${end}/${stat.size}`,
-      "Content-Type": contentType,
-    });
-    fs.createReadStream(filePath, { start, end }).pipe(response);
-    return;
+function parseJobInputFrame(raw: unknown): JobInputFrame | undefined {
+  if (!raw) return undefined;
+  try {
+    const value = typeof raw === "string" ? (JSON.parse(raw) as unknown) : raw;
+    if (!value || typeof value !== "object") return undefined;
+    const input = value as Partial<JobInputFrame>;
+    if (input.source !== "source" && input.source !== "prep") return undefined;
+    const label = cleanOptionalString(input.label) ?? (input.source === "prep" ? "Frame" : "image");
+    return {
+      source: input.source,
+      label,
+      preparedImageId: cleanOptionalString(input.preparedImageId),
+      clientSourceId: cleanOptionalString(input.clientSourceId),
+    };
+  } catch {
+    return undefined;
   }
-  response.writeHead(200, {
-    "Accept-Ranges": "bytes",
-    "Content-Length": String(stat.size),
-    "Content-Type": contentType,
-  });
-  fs.createReadStream(filePath).pipe(response);
 }
 
-function contentTypeFor(filePath: string): string {
-  const ext = path.extname(filePath).toLowerCase();
-  if (ext === ".mp4") return "video/mp4";
-  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
-  if (ext === ".webp") return "image/webp";
-  if (ext === ".png") return "image/png";
-  return "application/octet-stream";
+function cleanOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const { app, config } = createServer();
   app.listen(config.port, config.host, () => {
-    console.log(`Grok Video Studio listening on http://${config.host}:${config.port}`);
+    console.log(`Grok Studio listening on http://${config.host}:${config.port}`);
   });
 }

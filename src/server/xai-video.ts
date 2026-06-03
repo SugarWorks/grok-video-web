@@ -73,7 +73,14 @@ export async function generateGrokImageVideo(input: GenerateVideoInput): Promise
     onStatus: input.onStatus,
   });
   input.onStatus?.("download");
-  const localPath = await downloadVideo(remoteUrl, input.config.workspaceDir, jobId, requestId);
+  const localPath = await downloadVideo({
+    url: remoteUrl,
+    workspaceDir: input.config.workspaceDir,
+    jobId,
+    requestId,
+    timeoutSeconds: input.config.defaults.pollTimeoutSeconds,
+    onStatus: input.onStatus,
+  });
   return { jobId, requestId, localPath, remoteUrl, elapsedMs: Date.now() - startedAt };
 }
 
@@ -104,15 +111,24 @@ async function pollUntilDone(input: {
   onStatus?: (status: string) => void;
 }): Promise<string> {
   const deadline = Date.now() + input.timeoutSeconds * 1000;
+  let lastPollNetworkError: unknown;
   while (Date.now() < deadline) {
     await wait(input.intervalSeconds * 1000);
-    const response = await fetchWithRetry(
-      `${input.baseUrl}/videos/${input.requestId}`,
-      {
-        headers: { Authorization: `Bearer ${input.token}` },
-      },
-      "poll",
-    );
+    let response: Response;
+    try {
+      response = await fetchWithRetry(
+        `${input.baseUrl}/videos/${input.requestId}`,
+        {
+          headers: { Authorization: `Bearer ${input.token}` },
+        },
+        "poll",
+      );
+      lastPollNetworkError = undefined;
+    } catch (error) {
+      lastPollNetworkError = error;
+      input.onStatus?.("poll_network_retry");
+      continue;
+    }
     if (!response.ok) {
       const body = await response.text().catch(() => "");
       throw new Error(
@@ -135,19 +151,59 @@ async function pollUntilDone(input: {
     }
   }
   throw new Error(
-    `Grok video timed out after ${input.timeoutSeconds}s for request ${input.requestId}`,
+    `Grok video timed out after ${input.timeoutSeconds}s for request ${input.requestId}${
+      lastPollNetworkError ? `; last poll network error: ${formatError(lastPollNetworkError)}` : ""
+    }`,
   );
 }
 
-async function downloadVideo(
-  url: string,
+async function downloadVideo(input: {
+  url: string;
+  workspaceDir: string;
+  jobId: string;
+  requestId: string;
+  timeoutSeconds: number;
+  onStatus?: (status: string) => void;
+}): Promise<string> {
+  const deadline = Date.now() + input.timeoutSeconds * 1000;
+  let lastError: unknown;
+  let attempt = 0;
+  while (Date.now() < deadline) {
+    try {
+      const response = await fetchWithRetry(input.url, {}, "download");
+      if (!response.ok) {
+        const error = new Error(`Grok download failed: ${response.status} ${response.statusText}`);
+        if (response.status < 500) throw error;
+        lastError = error;
+        input.onStatus?.("download_retry");
+      } else {
+        return await saveDownloadedVideo(
+          response,
+          input.workspaceDir,
+          input.jobId,
+          input.requestId,
+        );
+      }
+    } catch (error) {
+      lastError = error;
+      input.onStatus?.("download_network_retry");
+    }
+    attempt += 1;
+    await wait(Math.min(90_000, 4000 * attempt));
+  }
+  throw new Error(
+    `Grok download timed out after ${input.timeoutSeconds}s for request ${input.requestId}${
+      lastError ? `; last download error: ${formatError(lastError)}` : ""
+    }`,
+  );
+}
+
+async function saveDownloadedVideo(
+  response: Response,
   workspaceDir: string,
   jobId: string,
   requestId: string,
 ): Promise<string> {
-  const response = await fetchWithRetry(url, {}, "download");
-  if (!response.ok)
-    throw new Error(`Grok download failed: ${response.status} ${response.statusText}`);
   const outputDir = path.join(workspaceDir, "videos");
   fs.mkdirSync(outputDir, { recursive: true });
   const filePath = path.join(

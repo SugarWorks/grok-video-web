@@ -2,7 +2,7 @@
   "name": "grok-video-web",
   "version": "0.1.0",
   "private": true,
-  "description": "Self-hosted Grok image-to-video studio.",
+  "description": "Self-hosted Grok generation studio.",
   "type": "module",
   "scripts": {
     "dev": "vp exec tsx src/server/server.ts",
@@ -23,13 +23,16 @@
     "start": "node dist/server/launch.js"
   },
   "dependencies": {
+    "@xyflow/react": "^12.11.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "lucide-react": "^0.561.0",
     "multer": "^2.0.2",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "zod": "^3.25.76"
+    "yet-another-react-lightbox": "^3.32.0",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import type { JobRecord } from "../shared/api.js";
+import type { JobInputFrame, JobRecord } from "../shared/api.js";
 import {
   composePrompt,
   type GenerationOptions,
@@ -13,6 +13,7 @@ type CreateJobInput = {
   imagePath: string;
   imageUrl: string;
   options: GenerationOptions;
+  inputFrame?: JobInputFrame;
 };
 
 export class JobStore {
@@ -46,6 +47,7 @@ export class JobStore {
       sourceImageUrl: input.imageUrl,
       sourceImagePath: input.imagePath,
       options: input.options,
+      inputFrame: input.inputFrame,
       submittedPrompt: composePrompt(input.options),
       progress: ["queued"],
       results: [],

@@ -10,7 +10,7 @@ await ensureAuthReady();
 
 const { app } = createServer(config);
 app.listen(config.port, config.host, () => {
-  console.log(`Grok Video Studio is running: http://${config.host}:${config.port}`);
+  console.log(`Grok Studio is running: http://${config.host}:${config.port}`);
   if (config.accessToken) {
     console.log("ACCESS_TOKEN is configured; enter the value from .env in the browser gate.");
   } else {

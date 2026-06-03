@@ -3,9 +3,13 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 import { buildXaiVideoRequest } from "../src/server/xai-video.js";
+import { buildXaiImageEditRequest } from "../src/server/xai-image.js";
 import type { AppConfig } from "../src/server/config.js";
+import { PreparedImageStore } from "../src/server/prepared-images.js";
 import {
+  composeFramePrepPrompt,
   composePrompt,
+  defaultFramePrepOptions,
   defaultGenerationOptions,
   normalizeGenerationOptions,
 } from "../src/shared/options.js";
@@ -57,10 +61,18 @@ describe("prompt composition", () => {
       loopFriendly: true,
     });
     expect(prompt).toContain("subtle smile");
-    expect(prompt).toContain("gentle breathing");
     expect(prompt).toContain("Preserve the source image");
     expect(prompt).toContain("Do not invent or rewrite readable text");
     expect(prompt).toContain("clean loop");
+  });
+
+  it("uses the selected preset prompt when custom prompt is empty", () => {
+    const prompt = composePrompt({
+      ...defaults,
+      prompt: "",
+      presetId: "breathe",
+    });
+    expect(prompt).toContain("gentle breathing");
   });
 });
 
@@ -72,6 +84,60 @@ describe("xAI request body", () => {
     expect(body.aspect_ratio).toBeUndefined();
     expect(body.model).toBe("grok-imagine-video");
     expect(body.image).toEqual({ url: expect.stringMatching(/^data:image\/png;base64,/) });
+  });
+
+  it("builds JSON image edit requests for first-frame preparation", () => {
+    const imagePath = path.join(os.tmpdir(), "grok-video-web-edit-test.png");
+    fs.writeFileSync(imagePath, Buffer.from([137, 80, 78, 71]));
+    const options = {
+      ...defaultFramePrepOptions(),
+      instruction: "make the frame cleaner",
+      resolution: "2k" as const,
+    };
+    const body = buildXaiImageEditRequest(fakeConfig(), imagePath, options);
+    expect(body.model).toBe("grok-imagine-image-quality");
+    expect(body.resolution).toBe("2k");
+    expect(body.prompt).toContain("make the frame cleaner");
+    expect(body.image).toEqual({
+      type: "image_url",
+      url: expect.stringMatching(/^data:image\/png;base64,/),
+    });
+  });
+});
+
+describe("first-frame preparation prompt", () => {
+  it("keeps the edit focused on a single video-ready frame", () => {
+    const prompt = composeFramePrepPrompt({
+      ...defaultFramePrepOptions(),
+      instruction: "fix unstable hands",
+    });
+    expect(prompt).toContain("first frame");
+    expect(prompt).toContain("fix unstable hands");
+    expect(prompt).toContain("Do not create a collage");
+  });
+});
+
+describe("prepared image store", () => {
+  it("persists prepared image records across store reloads", () => {
+    const config = {
+      ...fakeConfig(),
+      workspaceDir: fs.mkdtempSync(path.join(os.tmpdir(), "grok-video-prep-")),
+    };
+    const record = {
+      id: "prep_test",
+      createdAt: new Date("2026-06-02T00:00:00.000Z").toISOString(),
+      sourceImageUrl: "/api/files/images/source.png",
+      sourceImagePath: path.join(config.workspaceDir, "source.png"),
+      preparedImageUrl: "/api/files/images/prepared.png",
+      preparedImagePath: path.join(config.workspaceDir, "prepared.png"),
+      prompt: "prepare a clean first frame",
+      options: defaultFramePrepOptions(),
+      clientSourceId: "source_123",
+    };
+
+    new PreparedImageStore(config).add(record);
+
+    expect(new PreparedImageStore(config).list()).toEqual([record]);
   });
 });
 
@@ -86,6 +152,7 @@ function fakeConfig(): AppConfig {
       oauthTokenFile: "/tmp/missing",
       baseUrl: "https://api.x.ai/v1",
       model: "grok-imagine-video",
+      imageModel: "grok-imagine-image-quality",
     },
     workspaceDir: "/tmp",
     defaults: {

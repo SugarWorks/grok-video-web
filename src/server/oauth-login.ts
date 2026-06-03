@@ -50,7 +50,7 @@ export async function runXaiOauthLogin(options: LoginOptions): Promise<void> {
   });
 
   try {
-    console.log("Open this URL to authorize Grok Video Studio with xAI:");
+    console.log("Open this URL to authorize Grok Studio with xAI:");
     console.log(authorizeUrl);
     console.log();
     if (options.printUrlOnly) return;

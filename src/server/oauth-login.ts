@@ -1,10 +1,10 @@
+import { execFile } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
 import process from "node:process";
-import readline from "node:readline/promises";
-import { execFile } from "node:child_process";
+import * as clack from "@clack/prompts";
 
 const ISSUER = "https://auth.x.ai";
 const DISCOVERY_URL = `${ISSUER}/.well-known/openid-configuration`;
@@ -50,18 +50,15 @@ export async function runXaiOauthLogin(options: LoginOptions): Promise<void> {
   });
 
   try {
-    console.log("Open this URL to authorize Grok Studio with xAI:");
-    console.log(authorizeUrl);
-    console.log();
+    clack.note(authorizeUrl, "Authorize Grok Studio with xAI");
     if (options.printUrlOnly) return;
-    console.log(`Waiting for callback on ${redirectUri}`);
-    console.log("If xAI shows a fallback code, paste that code here and press Return.");
     if (!options.noBrowser) openBrowser(authorizeUrl);
-    const callback = await waitForCallbackOrFallbackInput({
+    const callback = await awaitAuthorization({
       server,
       timeoutMs: (options.timeoutSeconds ?? 600) * 1000,
       redirectUri,
       expectedState: state,
+      noBrowser: Boolean(options.noBrowser),
     });
     if (callback.error) {
       throw new Error(`xAI authorization failed: ${callback.error_description ?? callback.error}`);
@@ -104,7 +101,7 @@ export async function runXaiOauthLogin(options: LoginOptions): Promise<void> {
       last_refresh: new Date().toISOString(),
       source: "grok-video-web-oauth-login",
     });
-    console.log(`xAI OAuth login successful. Token state saved to ${options.outputPath}`);
+    clack.log.success(`xAI OAuth login successful. Token saved to ${options.outputPath}`);
   } finally {
     await closeServer(server.server);
   }
@@ -235,36 +232,39 @@ async function waitForCallback(
   throw new Error("Timed out waiting for xAI OAuth callback.");
 }
 
-async function waitForCallbackOrFallbackInput(input: {
+// Happy path: just wait for the browser callback behind a spinner — no stdin
+// prompt competing for input. Only fall back to manual paste when there is no
+// browser, or if the callback never arrives.
+async function awaitAuthorization(input: {
   server: { result: CallbackResult };
   timeoutMs: number;
   redirectUri: string;
   expectedState: string;
+  noBrowser: boolean;
 }): Promise<CallbackResult> {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+  if (input.noBrowser) {
+    return pasteFallback(input.redirectUri, input.expectedState);
+  }
+  const spinner = clack.spinner();
+  spinner.start("Waiting for browser login…");
   try {
-    return await Promise.race([
-      waitForCallback(input.server, input.timeoutMs),
-      waitForFallbackInput(rl, {
-        redirectUri: input.redirectUri,
-        expectedState: input.expectedState,
-      }),
-    ]);
-  } finally {
-    rl.close();
+    const result = await waitForCallback(input.server, input.timeoutMs);
+    spinner.stop("Authorized in browser.");
+    return result;
+  } catch {
+    spinner.stop("No browser callback received.");
+    return pasteFallback(input.redirectUri, input.expectedState);
   }
 }
 
-async function waitForFallbackInput(
-  rl: readline.Interface,
-  input: { redirectUri: string; expectedState: string },
-): Promise<CallbackResult> {
+async function pasteFallback(redirectUri: string, expectedState: string): Promise<CallbackResult> {
   while (true) {
-    const value = await rl.question(
-      `Paste the full ${input.redirectUri} callback URL or xAI fallback code: `,
-    );
-    const parsed = parseCallbackInput(value, input.expectedState);
-    if (parsed) return parsed;
+    const value = await clack.text({
+      message: `Paste the ${redirectUri} callback URL or the xAI fallback code`,
+    });
+    if (clack.isCancel(value)) throw new Error("Login cancelled.");
+    const parsed = parseCallbackInput(String(value), expectedState);
+    if (parsed?.code || parsed?.error) return parsed;
   }
 }
 

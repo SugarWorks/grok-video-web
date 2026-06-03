@@ -1,41 +1,66 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { Command } from "commander";
 import { loadConfig } from "./config.js";
 import { runGenCli } from "./gen.js";
 import { runLoginCli } from "./login.js";
 import { startServer } from "./serve.js";
 import { resolveXaiAuth } from "./xai-auth.js";
 
-const [command, ...rest] = process.argv.slice(2);
+const program = new Command();
+
+program
+  .name("grok-studio")
+  .description("Self-hosted Grok image-to-video studio (web app + CLI).")
+  .version(readVersion(), "-v, --version");
+
+program
+  .command("serve", { isDefault: true })
+  .description("Start the web app (ensures xAI auth, then serves HTTP).")
+  .option("--open", "open the browser after starting")
+  .action(async (opts: { open?: boolean }) => {
+    await startServer({ open: Boolean(opts.open) });
+  });
+
+program
+  .command("login")
+  .description("Run the xAI OAuth login.")
+  .option("--live", "write to the live token file instead of the safe test path")
+  .option("--output <path>", "token state file to write")
+  .option("--force", "allow replacing an existing token file")
+  .option("--check", "verify the selected token file without logging in")
+  .option("--no-browser", "print the auth URL and wait instead of opening a browser")
+  .option("--print-url-only", "print a disposable auth URL, then exit")
+  .option("--port <number>", "local callback port", Number)
+  .option("--timeout <seconds>", "login wait timeout", Number)
+  .action(async (opts) => {
+    await runLoginCli(opts);
+  });
+
+program
+  .command("gen")
+  .description("Headlessly turn an image into a video (no UI).")
+  .requiredOption("--image <path>", "source image")
+  .option("--prompt <text>", "motion prompt")
+  .option("--prep", "run a first-frame prep pass before the video")
+  .option("--duration <seconds>", "clip length", Number)
+  .option("--resolution <res>", "e.g. 720p / 1080p")
+  .option("--aspect <ratio>", "e.g. source / 9:16 / 16:9 / 1:1")
+  .option("--count <n>", "number of takes", Number)
+  .option("--out <path>", "write the result here (count>1 appends -N)")
+  .action(async (opts) => {
+    await runGenCli(opts);
+  });
+
+program
+  .command("status")
+  .description("Print config, xAI auth, and server health.")
+  .action(async () => {
+    await runStatus();
+  });
 
 try {
-  switch (command) {
-    case undefined:
-    case "serve":
-      await startServer({ open: rest.includes("--open") });
-      break;
-    case "login":
-      await runLoginCli(rest);
-      break;
-    case "gen":
-      await runGenCli(rest);
-      break;
-    case "status":
-      await runStatus();
-      break;
-    case "-v":
-    case "--version":
-      console.log(readVersion());
-      break;
-    case "-h":
-    case "--help":
-      printHelp();
-      break;
-    default:
-      console.error(`Unknown command: ${command}\n`);
-      printHelp();
-      process.exit(1);
-  }
+  await program.parseAsync(process.argv);
 } catch (error) {
   console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
@@ -72,20 +97,4 @@ function readVersion(): string {
   } catch {
     return "0.0.0";
   }
-}
-
-function printHelp(): void {
-  console.log(`Grok Studio — self-hosted image-to-video studio
-
-Usage: grok-studio <command> [options]
-
-Commands:
-  serve            Start the web app (default). Ensures xAI auth, then serves HTTP.
-                     --open   open the browser after starting
-  login [options]  Run the xAI OAuth login (see: grok-studio login --help)
-  gen [options]    Headlessly turn an image into a video (see: grok-studio gen --help)
-  status           Print config, xAI auth, and server health
-  --version, -v    Print the version
-  --help, -h       Print this help
-`);
 }

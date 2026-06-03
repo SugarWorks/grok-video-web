@@ -35,7 +35,9 @@
     "prepack": "vp run build"
   },
   "dependencies": {
+    "@clack/prompts": "^1.5.0",
     "@xyflow/react": "^12.11.0",
+    "commander": "^15.0.0",
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
     "lucide-react": "^0.561.0",

@@ -7,27 +7,22 @@ import {
 } from "../shared/options.js";
 import { loadConfig } from "./config.js";
 import { generateGrokImageEdit } from "./xai-image.js";
-import { generateGrokImageVideo } from "./xai-video.js";
 import { resolveXaiAuth } from "./xai-auth.js";
+import { generateGrokImageVideo } from "./xai-video.js";
 
-type GenArgs = {
-  image?: string;
+export type GenOptions = {
+  image: string;
   prompt?: string;
   out?: string;
   duration?: number;
   resolution?: string;
   aspect?: string;
   count?: number;
-  prep: boolean;
+  prep?: boolean;
 };
 
-export async function runGenCli(argv: string[]): Promise<void> {
-  const args = parseArgs(argv);
-  if (!args.image) {
-    printHelp();
-    throw new Error("--image <path> is required.");
-  }
-  if (!fs.existsSync(args.image)) throw new Error(`Image not found: ${args.image}`);
+export async function runGenCli(opts: GenOptions): Promise<void> {
+  if (!fs.existsSync(opts.image)) throw new Error(`Image not found: ${opts.image}`);
 
   const config = loadConfig();
   try {
@@ -38,8 +33,8 @@ export async function runGenCli(argv: string[]): Promise<void> {
     );
   }
 
-  let imagePath = path.resolve(args.image);
-  if (args.prep) {
+  let imagePath = path.resolve(opts.image);
+  if (opts.prep) {
     process.stderr.write("preparing first frame…\n");
     const prepared = await generateGrokImageEdit({
       config,
@@ -51,11 +46,11 @@ export async function runGenCli(argv: string[]): Promise<void> {
     process.stderr.write(`prepared frame: ${imagePath}\n`);
   }
 
-  const overrides: Record<string, unknown> = { prompt: args.prompt ?? "" };
-  if (args.duration !== undefined) overrides.durationSeconds = args.duration;
-  if (args.resolution) overrides.resolution = args.resolution;
-  if (args.aspect) overrides.aspectRatio = args.aspect;
-  if (args.count !== undefined) overrides.count = args.count;
+  const overrides: Record<string, unknown> = { prompt: opts.prompt ?? "" };
+  if (opts.duration !== undefined) overrides.durationSeconds = opts.duration;
+  if (opts.resolution) overrides.resolution = opts.resolution;
+  if (opts.aspect) overrides.aspectRatio = opts.aspect;
+  if (opts.count !== undefined) overrides.count = opts.count;
   const options = normalizeGenerationOptions(
     overrides,
     defaultGenerationOptions(config.defaults),
@@ -74,7 +69,7 @@ export async function runGenCli(argv: string[]): Promise<void> {
       jobId: `gen_${stamp}_${take}`,
       onStatus: (status) => process.stderr.write(`  take ${take}: ${status}\n`),
     });
-    outputs.push(resolveOutput(result.localPath, args.out, take, options.count));
+    outputs.push(resolveOutput(result.localPath, opts.out, take, options.count));
   }
 
   for (const file of outputs) console.log(file);
@@ -96,61 +91,4 @@ function resolveOutput(
       : out;
   fs.copyFileSync(localPath, path.resolve(target));
   return path.resolve(target);
-}
-
-function parseArgs(values: string[]): GenArgs {
-  const parsed: GenArgs = { prep: false };
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index];
-    if (value === "--help" || value === "-h") {
-      printHelp();
-      process.exit(0);
-    }
-    if (value === "--prep") {
-      parsed.prep = true;
-      continue;
-    }
-    const next = values[index + 1];
-    const requireNext = () => {
-      if (!next || next.startsWith("--")) throw new Error(`${value} requires a value.`);
-      index += 1;
-      return next;
-    };
-    if (value === "--image") parsed.image = requireNext();
-    else if (value === "--prompt") parsed.prompt = requireNext();
-    else if (value === "--out") parsed.out = requireNext();
-    else if (value === "--resolution") parsed.resolution = requireNext();
-    else if (value === "--aspect") parsed.aspect = requireNext();
-    else if (value === "--duration") parsed.duration = parsePositiveInt(requireNext(), value);
-    else if (value === "--count") parsed.count = parsePositiveInt(requireNext(), value);
-    else throw new Error(`Unknown argument: ${value}`);
-  }
-  return parsed;
-}
-
-function parsePositiveInt(value: string, flag: string): number {
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed <= 0)
-    throw new Error(`${flag} requires a positive integer.`);
-  return parsed;
-}
-
-function printHelp(): void {
-  console.log(`Usage: grok-studio gen --image <path> [options]
-
-Headlessly turn an image into a video (no UI).
-
-Options:
-  --image <path>        Source image (required).
-  --prompt <text>       Motion prompt.
-  --prep                Run a first-frame prep pass before the video.
-  --duration <seconds>  Clip length. Default from config.
-  --resolution <res>    e.g. 720p / 1080p.
-  --aspect <ratio>      e.g. source / 9:16 / 16:9 / 1:1.
-  --count <n>           Number of takes. Default 1.
-  --out <path>          Write the result here (count>1 appends -N). Default: workspace path.
-
-Example:
-  grok-studio gen --image portrait.png --prompt "slow head turn" --duration 6 --out clip.mp4
-`);
 }

@@ -6,6 +6,13 @@ import { composePrompt } from "../shared/options.js";
 import type { AppConfig } from "./config.js";
 import { randomId, resolveXaiAuth } from "./xai-auth.js";
 
+const MODERATION_MESSAGE =
+  "Rejected by xAI content moderation — this content can't be generated. Try a different image or prompt.";
+
+function isModerationRejection(text: string): boolean {
+  return /content moderation|moderation_|rejected by/i.test(text);
+}
+
 export type VideoJobResult = {
   jobId: string;
   requestId: string;
@@ -131,6 +138,7 @@ async function pollUntilDone(input: {
     }
     if (!response.ok) {
       const body = await response.text().catch(() => "");
+      if (isModerationRejection(body)) throw new Error(MODERATION_MESSAGE);
       throw new Error(
         `Grok poll failed: ${response.status} ${response.statusText} - ${body.slice(0, 500)}`,
       );
@@ -147,7 +155,9 @@ async function pollUntilDone(input: {
       return url;
     }
     if (status === "failed" || status === "expired") {
-      throw new Error(`Grok video status=${status}: ${JSON.stringify(json).slice(0, 500)}`);
+      const detail = JSON.stringify(json);
+      if (isModerationRejection(detail)) throw new Error(MODERATION_MESSAGE);
+      throw new Error(`Grok video status=${status}: ${detail.slice(0, 500)}`);
     }
   }
   throw new Error(

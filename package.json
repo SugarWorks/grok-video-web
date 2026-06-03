@@ -1,26 +1,38 @@
 {
-  "name": "grok-video-web",
+  "name": "grok-studio",
   "version": "0.1.0",
-  "private": true,
-  "description": "Self-hosted Grok generation studio.",
+  "private": false,
+  "description": "Self-hosted Grok image-to-video studio (web app + CLI).",
+  "bin": {
+    "grok-studio": "dist/server/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "dev": "vp exec tsx src/server/server.ts",
-    "build": "vp build && vp build --ssr src/server/launch.ts --outDir dist/server",
+    "dev": "vp exec tsx src/server/cli.ts serve",
+    "build": "vp build && vp build --ssr src/server/cli.ts --outDir dist/server",
     "build:client": "vp build",
-    "build:server": "vp build --ssr src/server/launch.ts --outDir dist/server",
+    "build:server": "vp build --ssr src/server/cli.ts --outDir dist/server",
     "check": "vp fmt --check && vp lint --deny-warnings && vp check --no-fmt --no-lint",
     "fmt": "vp fmt",
     "fmt:check": "vp fmt --check",
     "lint": "vp lint --deny-warnings",
     "lint:fix": "vp lint --fix",
     "typecheck": "vp check --no-fmt --no-lint",
-    "login": "vp exec tsx src/server/login.ts",
-    "login:grok": "vp exec tsx src/server/login.ts",
+    "login": "vp exec tsx src/server/cli.ts login",
+    "login:grok": "vp exec tsx src/server/cli.ts login",
     "launch": "vp run build && vp run start",
     "smoke": "node scripts/smoke.mjs",
     "test": "vp test",
-    "start": "node dist/server/launch.js"
+    "start": "node dist/server/cli.js serve",
+    "cli": "vp exec tsx src/server/cli.ts",
+    "prepack": "vp run build"
   },
   "dependencies": {
     "@xyflow/react": "^12.11.0",

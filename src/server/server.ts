@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import express, { type NextFunction, type Request, type Response } from "express";
 import multer from "multer";
 import type {
@@ -31,7 +32,7 @@ export function createServer(config: AppConfig = loadConfig()) {
   const app = express();
   const jobs = new JobStore(config);
   const preparedImages = new PreparedImageStore(config);
-  const clientDir = path.resolve("dist/client");
+  const clientDir = resolveClientDir();
 
   app.use(express.json({ limit: "1mb" }));
 
@@ -183,6 +184,14 @@ function isLoopbackRequest(request: Request): boolean {
   );
 }
 
+// Built server lives at dist/server, the client at dist/client. Resolve relative
+// to this module so a global/npx install finds the bundle regardless of cwd.
+function resolveClientDir(): string {
+  const moduleRelative = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../client");
+  if (fs.existsSync(moduleRelative)) return moduleRelative;
+  return path.resolve("dist/client");
+}
+
 function prepareWorkspace(config: AppConfig): void {
   fs.mkdirSync(path.join(config.workspaceDir, "images"), { recursive: true });
   fs.mkdirSync(path.join(config.workspaceDir, "videos"), { recursive: true });
@@ -217,11 +226,4 @@ function parseJobInputFrame(raw: unknown): JobInputFrame | undefined {
 
 function cleanOptionalString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) {
-  const { app, config } = createServer();
-  app.listen(config.port, config.host, () => {
-    console.log(`Grok Studio listening on http://${config.host}:${config.port}`);
-  });
 }

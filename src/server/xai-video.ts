@@ -7,7 +7,7 @@ import type { AppConfig } from "./config.js";
 import { randomId, resolveXaiAuth } from "./xai-auth.js";
 
 const MODERATION_MESSAGE =
-  "Rejected by xAI content moderation — this content can't be generated. Try a different image or prompt.";
+  "This run was rejected by xAI result moderation and may have consumed quota. Moderation runs on the generated result and can vary — try rerunning, or adjust the prompt/input.";
 
 function isModerationRejection(text: string): boolean {
   return /content moderation|moderation_|rejected by/i.test(text);

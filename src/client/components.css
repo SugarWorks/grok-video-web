@@ -854,6 +854,37 @@
   font-weight: 850;
 }
 
+.run-failed {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: #f1d8d3;
+  border: 2px solid var(--danger);
+  border-radius: 3px;
+}
+
+.run-failed-text {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--danger);
+  line-height: 1.4;
+}
+
+.rerun-button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 2px solid var(--charcoal);
+  border-radius: 3px;
+  background: var(--mint);
+  color: white;
+  font-weight: 900;
+  cursor: pointer;
+}
+
 .gate {
   min-height: 100vh;
   display: grid;

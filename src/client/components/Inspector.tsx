@@ -4,6 +4,7 @@ import {
   ImagePlus,
   Loader2,
   Play,
+  RotateCcw,
   SlidersHorizontal,
   Upload,
   Zap,
@@ -79,6 +80,7 @@ type InspectorProps = {
   onCopyPrompt: (value: string) => void;
   onOpenImage: (url: string, label: string) => void;
   onPickFrame: (frameId: string) => void;
+  onRerun: (job: JobRecord) => void;
   onPromptChange: (value: string) => void;
   onCategoryFilterChange: (value: MotionCategory) => void;
   onSelectOperator: (id: OperatorId) => void;
@@ -468,6 +470,14 @@ function renderVideoOutputs(props: InspectorProps) {
               </a>
             </article>
           ))
+        ) : job.status === "failed" ? (
+          <div className="run-failed">
+            <p className="run-failed-text">{job.error ?? "This run failed."}</p>
+            <button type="button" className="rerun-button" onClick={() => props.onRerun(job)}>
+              <RotateCcw size={16} />
+              Rerun
+            </button>
+          </div>
         ) : (
           <div className="pending compact">
             <Film size={26} />
@@ -530,6 +540,7 @@ export function Inspector({ onPickFile }: { onPickFile: () => void }) {
   const prepareFirstFrame = useStore((state) => state.prepareFirstFrame);
   const submit = useStore((state) => state.submit);
   const copyPrompt = useStore((state) => state.copyPrompt);
+  const reuseHistoryJob = useStore((state) => state.reuseHistoryJob);
   const openImage = useStore((state) => state.openImage);
   const pickFrame = useStore((state) => state.pickFrame);
   const setPrompt = useStore((state) => state.setPrompt);
@@ -586,6 +597,7 @@ export function Inspector({ onPickFile }: { onPickFile: () => void }) {
     onCopyPrompt: (value) => void copyPrompt(value),
     onOpenImage: openImage,
     onPickFrame: pickFrame,
+    onRerun: (job) => void reuseHistoryJob(job),
     onPromptChange: setPrompt,
     onCategoryFilterChange: setCategoryFilter,
     onSelectOperator: setOperator,

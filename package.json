@@ -1,6 +1,6 @@
 {
   "name": "grok-studio",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": false,
   "description": "Self-hosted Grok image-to-video studio (web app + CLI).",
   "bin": {

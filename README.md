@@ -36,7 +36,7 @@ PORT=8787
 ACCESS_TOKEN=                  # set to gate non-loopback access (empty = open on loopback/LAN)
 WORKSPACE_DIR=~/.grok-studio/workspace  # holds images/ videos/ jobs/ prepared-images/
 XAI_AUTH_MODE=oauth            # or: api_key (+ XAI_API_KEY)
-XAI_VIDEO_MODEL=grok-imagine-video
+XAI_VIDEO_MODEL=grok-imagine-video-1.5
 XAI_IMAGE_MODEL=grok-imagine-image-quality
 ```
 

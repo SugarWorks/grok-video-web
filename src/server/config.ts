@@ -20,7 +20,7 @@ const envSchema = z.object({
   XAI_OAUTH_TOKEN: z.string().optional().default(""),
   XAI_OAUTH_TOKEN_FILE: z.string().optional().default("~/.grok-video-web/xai-oauth.json"),
   XAI_BASE_URL: z.string().url().optional().default("https://api.x.ai/v1"),
-  XAI_VIDEO_MODEL: z.string().trim().min(1).optional().default("grok-imagine-video"),
+  XAI_VIDEO_MODEL: z.string().trim().min(1).optional().default("grok-imagine-video-1.5"),
   XAI_IMAGE_MODEL: z.string().trim().min(1).optional().default("grok-imagine-image-quality"),
   WORKSPACE_DIR: z.string().trim().min(1).optional().default("~/.grok-studio/workspace"),
   DEFAULT_DURATION_SECONDS: z.coerce.number().int().min(1).max(15).optional().default(6),

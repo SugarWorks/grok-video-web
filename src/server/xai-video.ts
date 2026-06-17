@@ -44,6 +44,10 @@ export async function generateGrokImageVideo(input: GenerateVideoInput): Promise
   const auth = await resolveXaiAuth(input.config);
   const requestBody = buildXaiVideoRequest(input.config, input.imagePath, input.options);
 
+  console.log(
+    `Grok video submit job=${jobId} auth=${auth.label} model=${input.config.xai.model} ` +
+      `duration=${input.options.durationSeconds}s resolution=${input.options.resolution} aspect=${input.options.aspectRatio}`,
+  );
   input.onStatus?.(`submit:${auth.label}`);
   const submit = await fetchWithRetry(
     `${auth.baseUrl}/videos/generations`,

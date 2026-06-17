@@ -82,7 +82,7 @@ describe("xAI request body", () => {
     fs.writeFileSync(imagePath, Buffer.from([137, 80, 78, 71]));
     const body = buildXaiVideoRequest(fakeConfig(), imagePath, defaults);
     expect(body.aspect_ratio).toBeUndefined();
-    expect(body.model).toBe("grok-imagine-video");
+    expect(body.model).toBe("grok-imagine-video-1.5");
     expect(body.image).toEqual({ url: expect.stringMatching(/^data:image\/png;base64,/) });
   });
 
@@ -151,7 +151,7 @@ function fakeConfig(): AppConfig {
       apiKey: "xai-key",
       oauthTokenFile: "/tmp/missing",
       baseUrl: "https://api.x.ai/v1",
-      model: "grok-imagine-video",
+      model: "grok-imagine-video-1.5",
       imageModel: "grok-imagine-image-quality",
     },
     workspaceDir: "/tmp",

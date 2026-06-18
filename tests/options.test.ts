@@ -66,6 +66,23 @@ describe("prompt composition", () => {
     expect(prompt).toContain("clean loop");
   });
 
+  it("can submit the user prompt without assisted suffixes", () => {
+    const prompt = composePrompt({
+      ...defaults,
+      prompt: "自动化流水线",
+      presetId: "breathe",
+      promptMode: "raw",
+      preserveSource: true,
+      avoidTextMutation: true,
+      loopFriendly: true,
+      camera: "static",
+      sound: "ambient",
+      intensity: "balanced",
+      outputStyle: "source",
+    });
+    expect(prompt).toBe("自动化流水线");
+  });
+
   it("uses the selected preset prompt when custom prompt is empty", () => {
     const prompt = composePrompt({
       ...defaults,

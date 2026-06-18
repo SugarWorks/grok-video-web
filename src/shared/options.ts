@@ -35,6 +35,9 @@ export type MotionIntensity = (typeof INTENSITIES)[number];
 export const OUTPUT_STYLES = ["source", "cinematic", "social", "product", "anime"] as const;
 export type OutputStyle = (typeof OUTPUT_STYLES)[number];
 
+export const PROMPT_MODES = ["assisted", "raw"] as const;
+export type PromptMode = (typeof PROMPT_MODES)[number];
+
 export const FRAME_PREP_MODES = ["video", "portrait", "cinematic", "product"] as const;
 export type FramePrepMode = (typeof FRAME_PREP_MODES)[number];
 
@@ -473,6 +476,7 @@ export const generationOptionsSchema = z.object({
   sound: z.enum(SOUND_MODES),
   intensity: z.enum(INTENSITIES),
   outputStyle: z.enum(OUTPUT_STYLES),
+  promptMode: z.enum(PROMPT_MODES).default("assisted"),
   preserveSource: z.boolean(),
   avoidTextMutation: z.boolean(),
   loopFriendly: z.boolean(),
@@ -508,6 +512,7 @@ export function defaultGenerationOptions(input: {
     sound: "ambient",
     intensity: "balanced",
     outputStyle: "source",
+    promptMode: "assisted",
     preserveSource: true,
     avoidTextMutation: true,
     loopFriendly: false,
@@ -600,6 +605,7 @@ export function composePrompt(
     | "sound"
     | "intensity"
     | "outputStyle"
+    | "promptMode"
     | "preserveSource"
     | "avoidTextMutation"
     | "loopFriendly"
@@ -607,6 +613,7 @@ export function composePrompt(
 ): string {
   const preset = findVideoMotionPreset(options.presetId);
   const promptText = options.prompt || preset?.prompt || "";
+  if (options.promptMode === "raw") return promptText.replace(/\s+/g, " ").trim().slice(0, 2200);
   const parts: string[] = [];
   if (promptText) parts.push(promptText);
   if (options.preserveSource) {

@@ -138,8 +138,12 @@ export class JobStore {
 function normalizeLoadedJob(value: unknown): JobRecord {
   const job = value as JobRecord;
   const options = generationOptionsSchema.safeParse(job.options);
-  if (!job.submittedPrompt && options.success) {
-    return { ...job, submittedPrompt: composePrompt(options.data) };
+  if (options.success) {
+    return {
+      ...job,
+      options: options.data,
+      submittedPrompt: job.submittedPrompt ?? composePrompt(options.data),
+    };
   }
   return job;
 }

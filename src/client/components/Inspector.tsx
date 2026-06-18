@@ -21,6 +21,7 @@ import {
   FRAME_PREP_STRENGTHS,
   INTENSITIES,
   OUTPUT_STYLES,
+  PROMPT_MODES,
   RESOLUTIONS,
   SOUND_MODES,
   VIDEO_MOTION_PRESETS,
@@ -307,62 +308,19 @@ function renderVideoParameters(props: InspectorProps) {
           placeholder="slow head turn, subtle fabric movement, stable face..."
         />
       </label>
-      <div className="mini-title">Guards</div>
-      <div className="toggles">
-        <Toggle
-          label="Source"
-          active={props.options.preserveSource}
-          onClick={() => props.onPatchOptions({ preserveSource: !props.options.preserveSource })}
-        />
-        <Toggle
-          label="Text"
-          active={props.options.avoidTextMutation}
-          onClick={() =>
-            props.onPatchOptions({ avoidTextMutation: !props.options.avoidTextMutation })
+      <ControlSection title="Generation">
+        <Segment
+          label="Prompt"
+          values={[...PROMPT_MODES]}
+          value={props.options.promptMode}
+          format={(value) => titleCase(value)}
+          onChange={(value) =>
+            props.onPatchOptions({
+              promptMode: value,
+              ...(value === "raw" ? { presetId: undefined } : {}),
+            })
           }
         />
-        <Toggle
-          label="Loop"
-          active={props.options.loopFriendly}
-          onClick={() => props.onPatchOptions({ loopFriendly: !props.options.loopFriendly })}
-        />
-      </div>
-      <ControlSection title="Motion presets">
-        <div className="category-filter">
-          {CATEGORY_FILTERS.map((cat) => (
-            <button
-              key={cat.key}
-              type="button"
-              className={props.categoryFilter === cat.key ? "active" : ""}
-              onClick={() => props.onCategoryFilterChange(cat.key)}
-            >
-              {cat.label}
-            </button>
-          ))}
-        </div>
-        <div className="preset-grid">
-          {VIDEO_MOTION_PRESETS.filter((preset) => preset.category === props.categoryFilter).map(
-            (preset) => (
-              <PresetButton
-                key={preset.id}
-                selected={props.options.presetId === preset.id}
-                label={preset.label}
-                description={preset.description}
-                onClick={() => {
-                  const deselect = props.options.presetId === preset.id;
-                  props.onPatchOptions({
-                    presetId: deselect ? undefined : preset.id,
-                    camera: preset.camera ?? props.options.camera,
-                    durationSeconds: preset.durationSeconds ?? props.options.durationSeconds,
-                  });
-                  if (!deselect) props.onPromptChange(preset.prompt);
-                }}
-              />
-            ),
-          )}
-        </div>
-      </ControlSection>
-      <ControlSection title="Generation">
         <Segment
           label="Length"
           values={[4, 5, 6, 8, 10, 12, 15]}
@@ -389,31 +347,96 @@ function renderVideoParameters(props: InspectorProps) {
           format={(value) => `${value}x`}
           onChange={(value) => props.onPatchOptions({ count: value })}
         />
-        <Segment
-          label="Camera"
-          values={[...CAMERA_MODES]}
-          value={props.options.camera}
-          onChange={(value) => props.onPatchOptions({ camera: value })}
-        />
-        <Segment
-          label="Motion"
-          values={[...INTENSITIES]}
-          value={props.options.intensity}
-          onChange={(value) => props.onPatchOptions({ intensity: value })}
-        />
-        <Segment
-          label="Style"
-          values={[...OUTPUT_STYLES]}
-          value={props.options.outputStyle}
-          onChange={(value) => props.onPatchOptions({ outputStyle: value })}
-        />
-        <Segment
-          label="Sound"
-          values={[...SOUND_MODES]}
-          value={props.options.sound}
-          onChange={(value) => props.onPatchOptions({ sound: value })}
-        />
+        {props.options.promptMode === "assisted" && (
+          <>
+            <Segment
+              label="Camera"
+              values={[...CAMERA_MODES]}
+              value={props.options.camera}
+              onChange={(value) => props.onPatchOptions({ camera: value })}
+            />
+            <Segment
+              label="Motion"
+              values={[...INTENSITIES]}
+              value={props.options.intensity}
+              onChange={(value) => props.onPatchOptions({ intensity: value })}
+            />
+            <Segment
+              label="Style"
+              values={[...OUTPUT_STYLES]}
+              value={props.options.outputStyle}
+              onChange={(value) => props.onPatchOptions({ outputStyle: value })}
+            />
+            <Segment
+              label="Sound"
+              values={[...SOUND_MODES]}
+              value={props.options.sound}
+              onChange={(value) => props.onPatchOptions({ sound: value })}
+            />
+          </>
+        )}
       </ControlSection>
+      {props.options.promptMode === "assisted" && (
+        <>
+          <div className="mini-title">Guards</div>
+          <div className="toggles">
+            <Toggle
+              label="Source"
+              active={props.options.preserveSource}
+              onClick={() =>
+                props.onPatchOptions({ preserveSource: !props.options.preserveSource })
+              }
+            />
+            <Toggle
+              label="Text"
+              active={props.options.avoidTextMutation}
+              onClick={() =>
+                props.onPatchOptions({ avoidTextMutation: !props.options.avoidTextMutation })
+              }
+            />
+            <Toggle
+              label="Loop"
+              active={props.options.loopFriendly}
+              onClick={() => props.onPatchOptions({ loopFriendly: !props.options.loopFriendly })}
+            />
+          </div>
+          <ControlSection title="Motion presets">
+            <div className="category-filter">
+              {CATEGORY_FILTERS.map((cat) => (
+                <button
+                  key={cat.key}
+                  type="button"
+                  className={props.categoryFilter === cat.key ? "active" : ""}
+                  onClick={() => props.onCategoryFilterChange(cat.key)}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+            <div className="preset-grid">
+              {VIDEO_MOTION_PRESETS.filter(
+                (preset) => preset.category === props.categoryFilter,
+              ).map((preset) => (
+                <PresetButton
+                  key={preset.id}
+                  selected={props.options.presetId === preset.id}
+                  label={preset.label}
+                  description={preset.description}
+                  onClick={() => {
+                    const deselect = props.options.presetId === preset.id;
+                    props.onPatchOptions({
+                      presetId: deselect ? undefined : preset.id,
+                      camera: preset.camera ?? props.options.camera,
+                      durationSeconds: preset.durationSeconds ?? props.options.durationSeconds,
+                    });
+                    if (!deselect) props.onPromptChange(preset.prompt);
+                  }}
+                />
+              ))}
+            </div>
+          </ControlSection>
+        </>
+      )}
       <PromptDisclosure
         title="Raw prompt"
         description="Submitted video prompt"
